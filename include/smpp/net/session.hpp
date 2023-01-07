@@ -7,7 +7,7 @@
 #include <smpp/common/request_pdu.hpp>
 #include <smpp/common/response_pdu.hpp>
 #include <smpp/common/serialization.hpp>
-#include <smpp/net/deserialize_error.hpp>
+#include <smpp/net/deserialization_error.hpp>
 #include <smpp/net/detail/static_flat_buffer.hpp>
 #include <smpp/net/pdu_variant.hpp>
 
@@ -117,10 +117,11 @@ public:
               auto [ec, received] =
                 co_await socket_.async_receive(receive_buf_.prepare(64 * 1024), asio::as_tuple(asio::deferred));
 
+              receive_buf_.commit(received);
+
               if (ec)
                 co_return { std::make_exception_ptr(boost::system::system_error{ ec }), {}, {}, {} };
 
-              receive_buf_.commit(received);
               needs_receive = false;
             }
 
@@ -157,9 +158,8 @@ public:
             }
             catch (const std::exception& ex)
             {
-              eptr = std::make_exception_ptr(deserialize_error{
-                ex.what(),
-                std::vector<uint8_t>{ receive_buf_.begin(), receive_buf_.begin() + command_length + header_length } });
+              eptr = std::make_exception_ptr(
+                deserialization_error{ ex.what(), { receive_buf_.begin(), receive_buf_.begin() + command_length } });
             }
 
             receive_buf_.consume(command_length);

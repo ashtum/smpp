@@ -4,6 +4,6 @@
 
 #pragma once
 
-#include <smpp/net/deserialize_error.hpp>
+#include <smpp/net/deserialization_error.hpp>
 #include <smpp/net/pdu_variant.hpp>
 #include <smpp/net/session.hpp>

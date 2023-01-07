@@ -6,27 +6,26 @@
 
 #include <cstdint>
 #include <exception>
-#include <span>
 #include <string>
 #include <vector>
 
 namespace smpp
 {
-class deserialize_error : public std::exception
+class deserialization_error : public std::exception
 {
   std::string error_;
-  std::vector<uint8_t> buffer_;
+  std::vector<uint8_t> pdu_buffer_;
 
 public:
-  deserialize_error(std::string error, std::vector<uint8_t> buffer)
+  deserialization_error(std::string error, std::vector<uint8_t> pdu_buffer)
     : error_{ std::move(error) }
-    , buffer_{ std::move(buffer) }
+    , pdu_buffer_{ std::move(pdu_buffer) }
   {
   }
 
-  std::span<const uint8_t> buffer() const noexcept
+  const std::vector<uint8_t>& pdu_buffer() const noexcept
   {
-    return buffer_;
+    return pdu_buffer_;
   }
 
   const char* what() const noexcept override
