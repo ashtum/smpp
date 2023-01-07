@@ -1,0 +1,61 @@
+FormatStyle:        'file'
+WarningsAsErrors:   '*'
+Checks:             '*,
+                    -readability-function-cognitive-complexity,
+                    -readability-identifier-length,-warnings-as-errors,
+                    -llvmlibc-*,
+                    -bugprone-implicit-widening-of-multiplication-result,
+                    -altera-unroll-loops,
+                    -altera-struct-pack-align,
+                    -misc-no-recursion,
+                    -bugprone-exception-escape,
+                    -fuchsia-default-arguments-declarations,
+                    -cppcoreguidelines-non-private-member-variables-in-classes,
+                    -fuchsia-trailing-return,
+                    -misc-non-private-member-variables-in-classes,
+                    -modernize-use-nodiscard,
+                    -cppcoreguidelines-avoid-magic-numbers,
+                    -readability-magic-numbers,
+                    -modernize-use-trailing-return-type,
+                    -fuchsia-default-arguments-calls,
+                    -fuchsia-default-arguments,
+                    -google-readability-braces-around-statements,
+                    -hicpp-braces-around-statements,
+                    -readability-braces-around-statements,
+                    -modernize-pass-by-value,
+                    -readability-implicit-bool-conversion,
+                    -cppcoreguidelines-pro-bounds-array-to-pointer-decay,
+                    -hicpp-no-array-decay,
+                    -llvm-header-guard,
+                    -cppcoreguidelines-pro-bounds-pointer-arithmetic,
+                    -fuchsia-overloaded-operator,
+                    -hicpp-signed-bitwise,
+                    -google-readability-todo,
+                    -readability-named-parameter,
+                    -hicpp-named-parameter,
+                    -android-cloexec-dup,
+                    -cppcoreguidelines-pro-bounds-constant-array-index,
+                    -readability-static-accessed-through-instance'
+CheckOptions:
+  - key:            readability-identifier-naming.NamespaceCase
+    value:          lower_case
+  - key:            readability-identifier-naming.ClassCase
+    value:          lower_case
+  - key:            readability-identifier-naming.StructCase
+    value:          lower_case
+  - key:            readability-identifier-naming.FunctionCase
+    value:          lower_case
+  - key:            readability-identifier-naming.UnionCase
+    value:          lower_case
+  - key:            readability-identifier-naming.EnumCase
+    value:          lower_case
+  - key:            readability-identifier-naming.ClassMemberCase
+    value:          lower_case
+  - key:            readability-identifier-naming.PrivateMemberSuffix
+    value:          _
+  - key:            readability-identifier-naming.ProtectedMemberSuffix
+    value:          _
+  - key:            readability-identifier-naming.VariableCase
+    value:          lower_case
+  - key:            readability-identifier-naming.GlobalConstantCase
+    value:          lower_case

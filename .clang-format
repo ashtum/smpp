@@ -1,0 +1,8 @@
+BasedOnStyle: Mozilla
+ColumnLimit: 120
+AlwaysBreakAfterDefinitionReturnType: None
+AlwaysBreakAfterReturnType: None
+AllowShortFunctionsOnASingleLine: false
+BreakBeforeBraces: Allman
+AlignAfterOpenBracket: AlwaysBreak
+AlignConsecutiveAssignments: true
