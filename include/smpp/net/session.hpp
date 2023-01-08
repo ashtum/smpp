@@ -26,11 +26,13 @@ class session
   asio::ip::tcp::socket socket_;
   detail::static_flat_buffer<uint8_t, 1024 * 1024> receive_buf_{};
   std::vector<uint8_t> send_buf_{};
+  asio::steady_timer send_cv_;
   uint32_t sequence_number_{ 0 };
 
 public:
   explicit session(asio::ip::tcp::socket socket)
     : socket_(std::move(socket))
+    , send_cv_{ socket.get_executor(), asio::steady_timer::time_point::max() }
   {
   }
 
@@ -45,7 +47,9 @@ public:
           const auto command_id      = std::decay_t<decltype(pdu)>::command_id;
           const auto sequence_number = next_sequence_number();
 
-          send_buf_.clear();
+          while (!send_buf_.empty()) // ongoing send operation
+            co_await send_cv_.async_wait(asio::as_tuple(asio::deferred));
+
           send_buf_.resize(header_length); // reserved for header
 
           auto eptr = std::exception_ptr{};
@@ -63,6 +67,9 @@ public:
             eptr = std::current_exception();
           }
 
+          send_buf_.clear();
+          send_cv_.cancel_one();
+
           co_return { eptr, sequence_number };
         }),
       token);
@@ -79,7 +86,10 @@ public:
         [&, sequence_number, command_status](auto) -> void
         {
           const auto command_id = std::decay_t<decltype(pdu)>::command_id;
-          send_buf_.clear();
+
+          while (!send_buf_.empty()) // ongoing send operation
+            co_await send_cv_.async_wait(asio::as_tuple(asio::deferred));
+
           send_buf_.resize(header_length); // reserved for header
 
           auto eptr = std::exception_ptr{};
@@ -96,6 +106,9 @@ public:
           {
             eptr = std::current_exception();
           }
+
+          send_buf_.clear();
+          send_cv_.cancel_one();
 
           co_return { eptr };
         }),
