@@ -7,6 +7,8 @@
 #include <boost/asio.hpp>
 #include <fmt/core.h>
 
+namespace asio = boost::asio;
+
 using pdu_request_t = std::variant<
   smpp::bind_receiver,
   smpp::bind_transceiver,
@@ -188,19 +190,20 @@ int main()
     auto socket  = co_await acceptor.async_accept(asio::deferred);
     auto session = smpp::session{ std::move(socket) };
 
-    for (;;)
+    for (auto i = sent_requests.size(); i > 0; i--)
     {
       auto [pdu, _, __] = co_await session.async_receive(asio::use_awaitable);
       received_requests.push_back(pdu);
-
-      if (std::holds_alternative<smpp::submit_sm>(pdu)) // The last one
-        break;
     }
 
     for (const auto& response : sent_responses)
+    {
       co_await std::visit(
         [&](const auto& pdu) { return session.async_send(pdu, 1, smpp::command_status::rok, asio::use_awaitable); },
         response);
+    }
+
+    co_await session.async_send_unbind(asio::use_awaitable);
   };
 
   auto client = [&]() -> asio::awaitable<void>
@@ -212,15 +215,14 @@ int main()
     auto session = smpp::session{ std::move(socket) };
 
     for (const auto& request : sent_requests)
+    {
       co_await std::visit([&](const auto& pdu) { return session.async_send(pdu, asio::use_awaitable); }, request);
+    }
 
-    for (;;)
+    for (auto i = sent_responses.size(); i > 0; i--)
     {
       auto [pdu, _, __] = co_await session.async_receive(asio::use_awaitable);
       received_responses.push_back(pdu);
-
-      if (std::holds_alternative<smpp::submit_sm_resp>(pdu)) // The last one
-        break;
     }
   };
 

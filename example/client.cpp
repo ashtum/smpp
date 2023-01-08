@@ -7,6 +7,8 @@
 #include <boost/asio.hpp>
 #include <fmt/core.h>
 
+namespace asio = boost::asio;
+
 asio::awaitable<void> client()
 {
   try

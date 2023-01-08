@@ -6,8 +6,6 @@
 
 #include <array>
 
-namespace asio = boost::asio;
-
 namespace smpp::detail
 {
 template<typename T, std::size_t N>
@@ -34,7 +32,7 @@ public:
     return buf_.size();
   }
 
-  asio::const_buffer data() const noexcept
+  boost::asio::const_buffer data() const noexcept
   {
     return { in_, dist(in_, out_) };
   }
@@ -54,7 +52,7 @@ public:
     return dist(in_, out_);
   }
 
-  asio::mutable_buffer prepare(std::size_t n)
+  boost::asio::mutable_buffer prepare(std::size_t n)
   {
     if (n <= dist(out_, buf_.end()))
     {

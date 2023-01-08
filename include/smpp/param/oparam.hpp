@@ -24,13 +24,13 @@ public:
 
   explicit oparam(std::span<const uint8_t>* buf)
   {
-    auto d_u16 = [](std::span<const uint8_t, 2> buf) -> uint16_t { return buf[0] << 8 | buf[1]; };
+    auto deserialize_u16 = [](std::span<const uint8_t, 2> buf) -> uint16_t { return buf[0] << 8 | buf[1]; };
 
     while (buf->size() >= 4)
     {
       auto constexpr header_length = 4;
-      auto tag                     = static_cast<oparam_tag>(d_u16(buf->subspan<0, 2>()));
-      auto val_length              = d_u16(buf->subspan<2, 2>());
+      auto tag                     = static_cast<oparam_tag>(deserialize_u16(buf->subspan<0, 2>()));
+      auto val_length              = deserialize_u16(buf->subspan<2, 2>());
 
       if (val_length > buf->size() - header_length)
         throw std::length_error{ "oparam val length is bigger than available buf" };
@@ -44,7 +44,7 @@ public:
 
   void serialize(std::vector<uint8_t>* vec) const
   {
-    auto s_u16 = [&](uint16_t val)
+    auto serialize_u16 = [&](uint16_t val)
     {
       vec->push_back((val >> 8) & 0xFF);
       vec->push_back((val >> 0) & 0xFF);
@@ -55,8 +55,8 @@ public:
       auto tag        = oparam.first;
       const auto& buf = oparam.second;
 
-      s_u16(static_cast<uint16_t>(tag));
-      s_u16(buf.size());
+      serialize_u16(static_cast<uint16_t>(tag));
+      serialize_u16(buf.size());
 
       vec->insert(vec->end(), buf.begin(), buf.end());
     }
