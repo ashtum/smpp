@@ -7,3 +7,4 @@
 #include <smpp/net/deserialization_error.hpp>
 #include <smpp/net/pdu_variant.hpp>
 #include <smpp/net/session.hpp>
+#include <smpp/net/unbinded.hpp>

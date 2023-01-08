@@ -23,15 +23,11 @@ using pdu_variant = std::variant<
   data_sm_resp,
   deliver_sm,
   deliver_sm_resp,
-  enquire_link,
-  enquire_link_resp,
   generic_nack,
   query_sm,
   query_sm_resp,
   replace_sm,
   replace_sm_resp,
   submit_sm,
-  submit_sm_resp,
-  unbind,
-  unbind_resp>;
+  submit_sm_resp>;
 } // namespace smpp

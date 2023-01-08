@@ -41,13 +41,15 @@ asio::awaitable<void> client()
     }
 
     fmt::print("Unbinding session...\n");
-    co_await session.async_send(smpp::unbind{}, asio::use_awaitable);
+    co_await session.async_send_unbind(asio::use_awaitable);
 
     co_await session.async_receive(asio::use_awaitable);
-
+  }
+  catch (const smpp::unbinded& e)
+  {
     fmt::print("Gracefully disconnected from server\n");
   }
-  catch (std::exception const& e)
+  catch (const std::exception& e)
   {
     fmt::print("Exception in client: {}\n", e.what());
   }

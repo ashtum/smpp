@@ -27,13 +27,6 @@ asio::awaitable<void> handle_session(asio::ip::tcp::socket socket)
     {
       auto [pdu, seq_num, status] = co_await session.async_receive(asio::use_awaitable);
 
-      if (std::holds_alternative<smpp::unbind>(pdu))
-      {
-        fmt::print("unbind received, sending unbind_resp...\n");
-        co_await session.async_send(smpp::unbind_resp{}, seq_num, smpp::command_status::rok, asio::use_awaitable);
-        break;
-      }
-
       auto& submit_sm = std::get<smpp::submit_sm>(pdu);
       fmt::print("submit_sm received, dest_addr: {}\n", submit_sm.dest_addr);
 
@@ -41,7 +34,9 @@ asio::awaitable<void> handle_session(asio::ip::tcp::socket socket)
       auto submit_sm_resp = smpp::submit_sm_resp{ .message_id = "123" };
       co_await session.async_send(submit_sm_resp, seq_num, smpp::command_status::rok, asio::use_awaitable);
     }
-
+  }
+  catch (const smpp::unbinded& e)
+  {
     fmt::print("Client is gracefully disconnected\n");
   }
   catch (const std::exception& e)
