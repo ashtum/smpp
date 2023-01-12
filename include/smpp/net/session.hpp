@@ -73,6 +73,13 @@ private:
     return sequence_number_;
   }
 
+  void shutdown_socket()
+  {
+    auto ec = boost::system::error_code{};
+    socket_.shutdown(asio::ip::tcp::socket::shutdown_both, ec);
+    socket_.close(ec);
+  }
+
   auto async_send_command(
     command_id command_id,
     uint32_t sequence_number,
@@ -231,9 +238,7 @@ auto session::async_receive(
             else if (pending_enquire_link)
             {
               co_await self->async_send_command(unbind, self->next_sequence_number(), deferred_tuple);
-              auto ec = boost::system::error_code{};
-              self->socket_.shutdown(asio::ip::tcp::socket::shutdown_both, ec);
-              self->socket_.close(ec);
+              self->shutdown_socket();
               co_return { std::make_exception_ptr(inactivity_error{}), {}, {}, {} };
             }
             else
@@ -275,9 +280,7 @@ auto session::async_receive(
               if (ec)
                 co_return { eptr_from_ec(ec), {}, {}, {} };
             }
-            auto ec = boost::system::error_code{};
-            self->socket_.shutdown(asio::ip::tcp::socket::shutdown_both, ec);
-            self->socket_.close(ec);
+            self->shutdown_socket();
             self->receive_buf_.consume(command_length);
             co_return { std::make_exception_ptr(unbinded{}), {}, {}, {} };
           }
