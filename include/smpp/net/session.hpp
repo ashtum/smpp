@@ -168,6 +168,8 @@ private:
               co_return ec;
           }
 
+          state.reset_cancellation_state(asio::enable_terminal_cancellation());
+
           self->send_buf_.resize(header_length); // reserved for header
           auto header_buf = std::span<uint8_t, header_length>{ self->send_buf_ };
           detail::serialize_header(header_buf, header_length, command_id, sequence_number);
@@ -202,6 +204,8 @@ auto session::async_send(
           if (ec != asio::error::operation_aborted || !!state.cancelled())
             co_return { eptr_from_ec(ec), {} };
         }
+
+        state.reset_cancellation_state(asio::enable_terminal_cancellation());
 
         auto eptr = std::exception_ptr{};
         try
@@ -246,6 +250,8 @@ auto session::async_send(
             co_return eptr_from_ec(ec);
         }
 
+        state.reset_cancellation_state(asio::enable_terminal_cancellation());
+
         auto eptr = std::exception_ptr{};
         try
         {
@@ -284,7 +290,7 @@ auto session::async_receive(
     asio::experimental::co_composed<void(std::exception_ptr, pdu_variant, uint32_t, command_status)>(
       [](auto state, auto* self) -> void
       {
-        for (auto needs_more = false, had_async_op = false, pending_enquire_link = false;;)
+        for (auto needs_more = false, needs_post = true, pending_enquire_link = false;;)
         {
           using enum command_id;
 
@@ -297,8 +303,8 @@ auto session::async_receive(
                 [&](auto token) { return self->enquire_link_timer_.async_wait(token); })
                 .async_wait(asio::experimental::wait_for_one(), deferred_tuple);
 
-            had_async_op = true;
-            needs_more   = false;
+            needs_post = false;
+            needs_more = false;
             self->receive_buf_.commit(received);
 
             if (order[0] == 0) // receive completed first
@@ -380,7 +386,7 @@ auto session::async_receive(
                 ex.what(), { self->receive_buf_.begin(), self->receive_buf_.begin() + command_length } });
             }
             self->receive_buf_.consume(command_length);
-            if (!had_async_op) // prevents stack growth
+            if (needs_post) // prevents stack growth
               co_await asio::post(state.get_io_executor(), asio::deferred);
             co_return { eptr, pdu, sequence_number, command_status };
           }
