@@ -13,10 +13,10 @@ struct query_sm
 {
   static constexpr auto command_id{ smpp::command_id::query_sm };
 
-  std::string message_id{};
+  std::string message_id;
   smpp::ton source_addr_ton{ ton::unknown };
   smpp::npi source_addr_npi{ npi::unknown };
-  std::string source_addr{};
+  std::string source_addr;
 
   bool operator==(const query_sm&) const = default;
 };

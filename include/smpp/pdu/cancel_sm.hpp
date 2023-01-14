@@ -13,14 +13,14 @@ struct cancel_sm
 {
   static constexpr auto command_id{ smpp::command_id::cancel_sm };
 
-  std::string service_type{};
-  std::string message_id{};
+  std::string service_type;
+  std::string message_id;
   smpp::ton source_addr_ton{ ton::unknown };
   smpp::npi source_addr_npi{ npi::unknown };
-  std::string source_addr{};
+  std::string source_addr;
   smpp::ton dest_addr_ton{ ton::unknown };
   smpp::npi dest_addr_npi{ npi::unknown };
-  std::string dest_addr{};
+  std::string dest_addr;
 
   bool operator==(const cancel_sm&) const = default;
 };

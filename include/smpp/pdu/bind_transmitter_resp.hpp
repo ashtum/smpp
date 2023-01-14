@@ -13,8 +13,8 @@ struct bind_transmitter_resp
 {
   static constexpr auto command_id{ smpp::command_id::bind_transmitter_resp };
 
-  std::string system_id{};
-  smpp::oparam oparam{};
+  std::string system_id;
+  smpp::oparam oparam;
 
   bool operator==(const bind_transmitter_resp&) const = default;
 };

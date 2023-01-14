@@ -13,15 +13,15 @@ struct replace_sm
 {
   static constexpr auto command_id{ smpp::command_id::replace_sm };
 
-  std::string message_id{};
+  std::string message_id;
   smpp::ton source_addr_ton{ ton::unknown };
   smpp::npi source_addr_npi{ npi::unknown };
-  std::string source_addr{};
-  std::string schedule_delivery_time{};
-  std::string validity_period{};
-  smpp::registered_delivery registered_delivery{};
+  std::string source_addr;
+  std::string schedule_delivery_time;
+  std::string validity_period;
+  smpp::registered_delivery registered_delivery;
   uint8_t sm_default_msg_id{};
-  std::string short_message{};
+  std::string short_message;
 
   bool operator==(const replace_sm&) const = default;
 };

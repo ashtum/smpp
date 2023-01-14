@@ -13,17 +13,17 @@ struct data_sm
 {
   static constexpr auto command_id{ smpp::command_id::data_sm };
 
-  std::string service_type{};
+  std::string service_type;
   smpp::ton source_addr_ton{ ton::unknown };
   smpp::npi source_addr_npi{ npi::unknown };
-  std::string source_addr{};
+  std::string source_addr;
   smpp::ton dest_addr_ton{ ton::unknown };
   smpp::npi dest_addr_npi{ npi::unknown };
-  std::string dest_addr{};
-  smpp::esm_class esm_class{};
+  std::string dest_addr;
+  smpp::esm_class esm_class;
   smpp::registered_delivery registered_delivery;
   smpp::data_coding data_coding{ data_coding::defaults };
-  smpp::oparam oparam{};
+  smpp::oparam oparam;
 
   bool operator==(const data_sm&) const = default;
 };

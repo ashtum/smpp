@@ -13,13 +13,13 @@ struct bind_transceiver
 {
   static constexpr auto command_id{ smpp::command_id::bind_transceiver };
 
-  std::string system_id{};
-  std::string password{};
-  std::string system_type{};
+  std::string system_id;
+  std::string password;
+  std::string system_type;
   smpp::interface_version interface_version{ interface_version::smpp_3_4 };
   smpp::ton addr_ton{ ton::unknown };
   smpp::npi addr_npi{ npi::unknown };
-  std::string address_range{};
+  std::string address_range;
 
   bool operator==(const bind_transceiver&) const = default;
 };

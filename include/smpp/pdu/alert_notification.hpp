@@ -15,11 +15,11 @@ struct alert_notification
 
   smpp::ton source_addr_ton{ ton::unknown };
   smpp::npi source_addr_npi{ npi::unknown };
-  std::string source_addr{};
+  std::string source_addr;
   smpp::ton esme_addr_ton{ ton::unknown };
   smpp::npi esme_addr_npi{ npi::unknown };
-  std::string esme_addr{};
-  smpp::oparam oparam{};
+  std::string esme_addr;
+  smpp::oparam oparam;
 
   bool operator==(const alert_notification&) const = default;
 };

@@ -13,24 +13,24 @@ struct submit_sm
 {
   static constexpr auto command_id{ smpp::command_id::submit_sm };
 
-  std::string service_type{};
+  std::string service_type;
   smpp::ton source_addr_ton{ ton::unknown };
   smpp::npi source_addr_npi{ npi::unknown };
-  std::string source_addr{};
+  std::string source_addr;
   smpp::ton dest_addr_ton{ ton::unknown };
   smpp::npi dest_addr_npi{ npi::unknown };
-  std::string dest_addr{};
-  smpp::esm_class esm_class{};
+  std::string dest_addr;
+  smpp::esm_class esm_class;
   uint8_t protocol_id{};
   smpp::priority_flag priority_flag{ priority_flag::gsm_non_priority };
-  std::string schedule_delivery_time{};
-  std::string validity_period{};
-  smpp::registered_delivery registered_delivery{};
+  std::string schedule_delivery_time;
+  std::string validity_period;
+  smpp::registered_delivery registered_delivery;
   smpp::replace_if_present_flag replace_if_present_flag{ replace_if_present_flag::no };
   smpp::data_coding data_coding{ data_coding::defaults };
   uint8_t sm_default_msg_id{};
-  std::string short_message{};
-  smpp::oparam oparam{};
+  std::string short_message;
+  smpp::oparam oparam;
 
   bool operator==(const submit_sm&) const = default;
 };

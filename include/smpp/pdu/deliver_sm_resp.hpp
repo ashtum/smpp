@@ -13,7 +13,7 @@ struct deliver_sm_resp
 {
   static constexpr auto command_id{ smpp::command_id::deliver_sm_resp };
 
-  std::string message_id{};
+  std::string message_id;
 
   bool operator==(const deliver_sm_resp&) const = default;
 };

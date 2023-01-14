@@ -13,8 +13,8 @@ struct data_sm_resp
 {
   static constexpr auto command_id{ smpp::command_id::data_sm_resp };
 
-  std::string message_id{};
-  smpp::oparam oparam{};
+  std::string message_id;
+  smpp::oparam oparam;
 
   bool operator==(const data_sm_resp&) const = default;
 };

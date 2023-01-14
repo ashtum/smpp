@@ -13,8 +13,8 @@ struct query_sm_resp
 {
   static constexpr auto command_id{ smpp::command_id::query_sm_resp };
 
-  std::string message_id{};
-  std::string final_date{};
+  std::string message_id;
+  std::string final_date;
   smpp::message_state message_state{ message_state::unknown };
   uint8_t error_code{};
 
