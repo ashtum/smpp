@@ -62,8 +62,11 @@ public:
    * If the serialization of the PDU throws, std::exception_ptr would contain the exception for example if a parameter
    * in the PDU exceeds its length limitation.
    * The std::exception_ptr can contains network errors and cancellation errors.
-   *
    * sequence_number will be returned as a uint32_t and can be used to map the response on the arrival.
+   *
+   * @par Per-Operation Cancellation
+   * This asynchronous operation supports cancellation for the following asio::cancellation_type values:
+   * @li cancellation_type::terminal
    *
    * @param pdu The request PDU
    * @param token The completion_token that will be used to produce a completion handler, which will be called when the
@@ -85,7 +88,7 @@ public:
    * The std::exception_ptr can contains network errors and cancellation errors.
    *
    * @param pdu The response PDU
-   * @param sequence_number The sequence_number that belongs to the request of this response
+   * @param sequence_number The sequence_number of the request that this response belongs to
    * @param command_status The status of the response
    * @param token The completion_token that will be used to produce a completion handler, which will be called when the
    * send completes
@@ -109,6 +112,10 @@ public:
    * @code void(boost::system::error_code) @endcode
    * The boost::system::error_code can contains network errors and cancellation errors.
    *
+   * @par Per-Operation Cancellation
+   * This asynchronous operation supports cancellation for the following asio::cancellation_type values:
+   * @li cancellation_type::terminal
+   *
    * @param token The completion_token that will be used to produce a completion handler, which will be called when the
    * send completes
    */
@@ -125,6 +132,12 @@ public:
    * smpp::deserialization_error which contains the error and the raw content of the PDU.
    * Upon a graceful unbind, operation completes with a std::exception_ptr of the type of smpp::unbinded.
    * The std::exception_ptr can contains network errors and cancellation errors.
+   *
+   * @par Per-Operation Cancellation
+   * This asynchronous operation supports cancellation for the following asio::cancellation_type values:
+   * @li cancellation_type::terminal
+   * @li cancellation_type::partial
+   * @li cancellation_type::total
    *
    * @param token The completion_token that will be used to produce a completion handler, which will be called when the
    * receive completes
