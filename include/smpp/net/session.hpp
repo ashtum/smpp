@@ -37,6 +37,13 @@ class session
   uint32_t sequence_number_{};
 
 public:
+  /// Construct a session from a TCP socket
+  /**
+   * This constructor creates a session from a TCP socket.
+   *
+   * @param socket The asio::ip::tcp::socket that will be used for sending and receiving messages
+   * @param enquire_link_interval The interval for detecting inactivity and enquire_link operation
+   */
   session(asio::ip::tcp::socket socket, std::chrono::seconds enquire_link_interval = std::chrono::seconds{ 60 })
     : socket_(std::move(socket))
     , send_cv_{ socket_.get_executor(), asio::steady_timer::time_point::max() }
@@ -45,18 +52,83 @@ public:
   {
   }
 
+  /// Start an asynchronous send for request PDUs
+  /**
+   * This function is used to asynchronously send a request PDU over the session.
+   * It is an initiating function for an asynchronous_operation, and always returns immediately.
+   *
+   * @par Completion Signature
+   * @code void(std::exception_ptr, uint32_t) @endcode
+   * If the serialization of the PDU throws, std::exception_ptr would contain the exception for example if a parameter
+   * in the PDU exceeds its length limitation.
+   * The std::exception_ptr can contains network errors and cancellation errors.
+   *
+   * sequence_number will be returned as a uint32_t and can be used to map the response on the arrival.
+   *
+   * @param pdu The request PDU
+   * @param token The completion_token that will be used to produce a completion handler, which will be called when the
+   * send completes
+   */
   auto async_send(
     const request_pdu auto& pdu,
     asio::completion_token_for<void(std::exception_ptr, uint32_t)> auto&& token);
 
+  /// Start an asynchronous send for response PDUs
+  /**
+   * This function is used to asynchronously send a response PDU over the session.
+   * It is an initiating function for an asynchronous_operation, and always returns immediately.
+   *
+   * @par Completion Signature
+   * @code void(std::exception_ptr) @endcode
+   * If the serialization of the PDU throws, std::exception_ptr would contain the exception for example if a parameter
+   * in the PDU exceeds its length limitation.
+   * The std::exception_ptr can contains network errors and cancellation errors.
+   *
+   * @param pdu The response PDU
+   * @param sequence_number The sequence_number that belongs to the request of this response
+   * @param command_status The status of the response
+   * @param token The completion_token that will be used to produce a completion handler, which will be called when the
+   * send completes
+   */
   auto async_send(
     const response_pdu auto& pdu,
     uint32_t sequence_number,
     command_status command_status,
     asio::completion_token_for<void(std::exception_ptr)> auto&& token);
 
+  /// Start an asynchronous send for initiating unbind process
+  /**
+   * This function is used to asynchronously send an unbind request over the session.
+   * It is an initiating function for an asynchronous_operation, and always returns immediately.
+   *
+   * For a graceful unbind process, after this operation completes you should continue using async_receive until it
+   * completes with an exception of the type of smpp::unbinded, which means the peer has received unbind request and has
+   * responded with an unbind_resp.
+   *
+   * @par Completion Signature
+   * @code void(boost::system::error_code) @endcode
+   * The boost::system::error_code can contains network errors and cancellation errors.
+   *
+   * @param token The completion_token that will be used to produce a completion handler, which will be called when the
+   * send completes
+   */
   auto async_send_unbind(asio::completion_token_for<void(boost::system::error_code)> auto&& token);
 
+  /// Start an asynchronous receive
+  /**
+   * This function is used to asynchronously receive a PDU.
+   * It is an initiating function for an asynchronous_operation, and always returns immediately.
+   *
+   * @par Completion Signature
+   * @code void(std::exception_ptr, pdu_variant, uint32_t, command_status) @endcode
+   * If the deserializer of a PDU throws, std::exception_ptr would contain the exception of the type of
+   * smpp::deserialization_error which contains the error and the raw content of the PDU.
+   * Upon a graceful unbind, operation completes with a std::exception_ptr of the type of smpp::unbinded.
+   * The std::exception_ptr can contains network errors and cancellation errors.
+   *
+   * @param token The completion_token that will be used to produce a completion handler, which will be called when the
+   * receive completes
+   */
   auto async_receive(
     asio::completion_token_for<void(std::exception_ptr, pdu_variant, uint32_t, command_status)> auto&& token);
 
