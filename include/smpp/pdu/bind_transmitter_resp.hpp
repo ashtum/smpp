@@ -13,8 +13,8 @@ struct bind_transmitter_resp
 {
   static constexpr auto command_id{ smpp::command_id::bind_transmitter_resp };
 
-  std::string system_id;
-  smpp::oparam oparam;
+  std::string system_id{};
+  smpp::oparam oparam{};
 
   bool operator==(const bind_transmitter_resp&) const = default;
 };
@@ -24,8 +24,8 @@ namespace detail
 template<>
 inline consteval auto pdu_meta<bind_transmitter_resp>()
 {
-  return std::tuple{ memv<c_octet_str<16>>(&bind_transmitter_resp::system_id, "system_id"),
-                     memv<smart>(&bind_transmitter_resp::oparam, "oparam") };
+  return std::tuple{ mem<c_octet_str<16>>(&bind_transmitter_resp::system_id, "system_id"),
+                     mem<smart>(&bind_transmitter_resp::oparam, "oparam") };
 }
 } // namespace detail
 } // namespace smpp

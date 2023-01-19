@@ -17,15 +17,14 @@ asio::awaitable<void> client()
     auto socket   = asio::ip::tcp::socket{ executor };
 
     co_await socket.async_connect({ asio::ip::tcp::v4(), 2775 }, asio::deferred);
-    fmt::print("Connection complete\n");
+    fmt::print("Connection complete, sending bind_transceiver...\n");
 
     auto session = smpp::session{ std::move(socket) };
 
-    fmt::print("Sending bind_transceiver...\n");
     auto bind_transceiver = smpp::bind_transceiver{ .system_id = "client_01" };
-    co_await session.async_send(bind_transceiver, asio::use_awaitable);
+    co_await session.async_send(bind_transceiver, asio::deferred);
 
-    auto [pdu, seq_num, status] = co_await session.async_receive(asio::use_awaitable);
+    auto [pdu, seq_num, status] = co_await session.async_receive(asio::deferred);
     auto& bind_transceiver_resp = std::get<smpp::bind_transceiver_resp>(pdu);
     fmt::print("bind_transceiver_resp received, system_id: {}\n", bind_transceiver_resp.system_id);
 
@@ -33,9 +32,9 @@ asio::awaitable<void> client()
     {
       fmt::print("Sending submit_sm...\n");
       auto submit_sm = smpp::submit_sm{ .dest_addr = fmt::format("{}", 1000 + i) };
-      co_await session.async_send(submit_sm, asio::use_awaitable);
+      co_await session.async_send(submit_sm, asio::deferred);
 
-      auto [pdu, seq_num, status] = co_await session.async_receive(asio::use_awaitable);
+      auto [pdu, seq_num, status] = co_await session.async_receive(asio::deferred);
       auto& submit_sm_resp        = std::get<smpp::submit_sm_resp>(pdu);
       fmt::print("submit_sm_resp received, message_id: {}\n", submit_sm_resp.message_id);
 
@@ -43,17 +42,13 @@ asio::awaitable<void> client()
     }
 
     fmt::print("Unbinding session...\n");
-    co_await session.async_send_unbind(asio::use_awaitable);
+    co_await session.async_send_unbind(asio::deferred);
 
-    co_await session.async_receive(asio::use_awaitable);
-  }
-  catch (const smpp::unbinded& e)
-  {
-    fmt::print("Gracefully disconnected from server\n");
+    co_await session.async_receive(asio::deferred);
   }
   catch (const std::exception& e)
   {
-    fmt::print("Exception in client: {}\n", e.what());
+    fmt::print("Exception: {}\n", e.what());
   }
 }
 

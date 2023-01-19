@@ -4,7 +4,9 @@
 
 #pragma once
 
+#include <smpp/net/invalid_pdu.hpp>
 #include <smpp/pdu.hpp>
+
 #include <variant>
 
 namespace smpp
@@ -29,5 +31,6 @@ using pdu_variant = std::variant<
   replace_sm,
   replace_sm_resp,
   submit_sm,
-  submit_sm_resp>;
+  submit_sm_resp,
+  invalid_pdu>;
 } // namespace smpp

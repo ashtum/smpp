@@ -4,16 +4,15 @@
 
 #pragma once
 
-#include <exception>
+#include <cinttypes>
+#include <string>
+#include <vector>
 
 namespace smpp
 {
-class unbinded : public std::exception
+struct invalid_pdu
 {
-public:
-  const char* what() const noexcept override
-  {
-    return "Session is unbinded gracefully";
-  }
+  std::vector<uint8_t> buffer;
+  std::string deserialization_error;
 };
 } // namespace smpp

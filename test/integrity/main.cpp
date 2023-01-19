@@ -192,7 +192,7 @@ int main()
 
     for (auto i = sent_requests.size(); i > 0; i--)
     {
-      auto [pdu, _, __] = co_await session.async_receive(asio::use_awaitable);
+      auto [pdu, _, __] = co_await session.async_receive(asio::deferred);
       received_requests.push_back(pdu);
     }
 
@@ -203,7 +203,8 @@ int main()
         response);
     }
 
-    co_await session.async_send_unbind(asio::use_awaitable);
+    co_await session.async_send_unbind(asio::deferred);
+    co_await session.async_receive(asio::deferred);
   };
 
   auto client = [&]() -> asio::awaitable<void>
@@ -221,7 +222,7 @@ int main()
 
     for (auto i = sent_responses.size(); i > 0; i--)
     {
-      auto [pdu, _, __] = co_await session.async_receive(asio::use_awaitable);
+      auto [pdu, _, __] = co_await session.async_receive(asio::deferred);
       received_responses.push_back(pdu);
     }
   };

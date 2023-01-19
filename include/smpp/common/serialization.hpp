@@ -163,7 +163,7 @@ struct u8_octet_str
 };
 
 template<typename R, typename S, typename T>
-struct memv_wrapper
+struct mem_wrapper
 {
   T S::*ptr;
   const char* name;
@@ -180,9 +180,9 @@ struct memv_wrapper
 };
 
 template<typename R, typename S, typename T>
-inline consteval auto memv(T S::*ptr, const char* name)
+inline consteval auto mem(T S::*ptr, const char* name)
 {
-  return memv_wrapper<R, S, T>{ ptr, name };
+  return mem_wrapper<R, S, T>{ ptr, name };
 }
 
 template<typename PDU>
