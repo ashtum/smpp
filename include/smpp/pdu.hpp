@@ -18,6 +18,7 @@
 #include <smpp/pdu/deliver_sm.hpp>
 #include <smpp/pdu/deliver_sm_resp.hpp>
 #include <smpp/pdu/generic_nack.hpp>
+#include <smpp/pdu/outbind.hpp>
 #include <smpp/pdu/query_sm.hpp>
 #include <smpp/pdu/query_sm_resp.hpp>
 #include <smpp/pdu/replace_sm.hpp>

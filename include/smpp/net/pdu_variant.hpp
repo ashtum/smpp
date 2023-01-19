@@ -26,6 +26,7 @@ using pdu_variant = std::variant<
   deliver_sm,
   deliver_sm_resp,
   generic_nack,
+  outbind,
   query_sm,
   query_sm_resp,
   replace_sm,

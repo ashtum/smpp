@@ -13,6 +13,7 @@ using pdu_request_t = std::variant<
   smpp::bind_receiver,
   smpp::bind_transceiver,
   smpp::bind_transmitter,
+  smpp::outbind,
   smpp::query_sm,
   smpp::submit_sm,
   smpp::deliver_sm,
