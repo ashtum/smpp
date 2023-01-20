@@ -58,7 +58,7 @@ asio::awaitable<void> acceptor()
   }
   catch (const std::exception& e)
   {
-    fmt::print("Exception in acceptor: {}\n", e.what());
+    fmt::print("Exception: {}\n", e.what());
   }
 }
 

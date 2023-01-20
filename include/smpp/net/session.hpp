@@ -114,7 +114,7 @@ public:
    *
    * @par Completion Signature
    * @code void(boost::system::error_code, pdu_variant, uint32_t, command_status) @endcode
-   * If the deserializer of a PDU fails, pdu_variant would contain invalid_pdu which contains the error and the buffer
+   * If the deserialization of a PDU fails, pdu_variant would contain invalid_pdu which contains the error and the buffer
    * of the PDU.
    * Upon a graceful unbind, operation completes with smpp::error::unbinded.
    * Upon an enquire_link timeout, operation completes with smpp::error::enquire_link_timeout.
