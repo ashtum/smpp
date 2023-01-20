@@ -7,8 +7,8 @@ target_link_libraries(server smpp pthread fmt::fmt Boost::headers)
 add_executable(client client.cpp)
 target_link_libraries(client smpp pthread fmt::fmt Boost::headers)
 
-target_compile_features(client PUBLIC cxx_std_20)
-target_compile_options(client PUBLIC -Wall -Wfatal-errors -Wextra -pedantic -pedantic-errors -Wno-unused-parameter)
+target_compile_features(client PRIVATE cxx_std_20)
+target_compile_options(client PRIVATE -Wall -Wfatal-errors -Wextra -pedantic -pedantic-errors -Wno-unused-parameter)
 
-target_compile_features(server PUBLIC cxx_std_20)
-target_compile_options(server PUBLIC -Wall -Wfatal-errors -Wextra -pedantic -pedantic-errors -Wno-unused-parameter)
+target_compile_features(server PRIVATE cxx_std_20)
+target_compile_options(server PRIVATE -Wall -Wfatal-errors -Wextra -pedantic -pedantic-errors -Wno-unused-parameter)

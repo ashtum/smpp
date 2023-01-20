@@ -1,2 +1,2 @@
 add_subdirectory(code_analysis)
-add_subdirectory(integrity)
+add_subdirectory(unit)
