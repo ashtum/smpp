@@ -6,6 +6,20 @@
 
 You can start with examples in the [example directory](example).
 
+#### Asio universal asynchronous model
+This library is written using Asio's composed operation and conforms to Asio universal asynchronous model, 
+which means it can be used with callbacks, coroutines, futures, Boost.Fiber and any other form of completion tokens.
+```C++
+// C++20's coroutines
+auto sequence_number = co_await session.async_send(submit_sm, asio::deferred);
+
+// Callbacks
+session.async_send(submit_sm, [](auto ec,auto sequence_number){});
+
+// Futures
+auto fut = co_await session.async_send(submit_sm, asio::use_future);
+```
+
 #### Client and Server use the same `smpp::session`
 A client connects a TCP socket to the server and constructs a `smpp::session`:
 ```C++
@@ -43,7 +57,7 @@ co_await session.async_send(submit_sm_resp, sequence_number, smpp::command_statu
 Enquire_link message can be sent by either the ESME or SMSC and is used to provide a confidence check of the communication path between the two parties, as long as there is an active `async_receive` operation, it would send and receive enquire_link messages and keep the session alive, so there is no need for user intervention.   
 The interval for the enquire_link operation can be passed to the constructor of `smpp::session` which has a default value of 60 seconds.
 ```C++
-session::session(asio::ip::tcp::socket socket, std::chrono::seconds enquire_link_interval = std::chrono::seconds{ 60 })
+session::session(asio::ip::tcp::socket socket, std::chrono::seconds enquire_link_interval)
 ```
 
 #### All the PDUs are aggregates
