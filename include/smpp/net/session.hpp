@@ -47,6 +47,12 @@ public:
     asio::ip::tcp::socket socket,
     std::chrono::seconds enquire_link_interval = std::chrono::seconds{ 60 });
 
+  /// Return a reference to the next layer
+  asio::ip::tcp::socket& next_layer() noexcept;
+
+  /// Return a const reference to the next layer
+  const asio::ip::tcp::socket& next_layer() const noexcept;
+
   /// Start an asynchronous send for request PDUs
   /**
    * This function is used to asynchronously send a request PDU over the session.
@@ -156,6 +162,16 @@ inline session::session(asio::ip::tcp::socket socket, std::chrono::seconds enqui
   , enquire_link_timer_{ socket_.get_executor() }
   , enquire_link_interval_{ enquire_link_interval }
 {
+}
+
+inline asio::ip::tcp::socket& session::next_layer() noexcept
+{
+  return socket_;
+}
+
+inline const asio::ip::tcp::socket& session::next_layer() const noexcept
+{
+  return socket_;
 }
 
 inline uint32_t session::next_sequence_number()
