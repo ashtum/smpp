@@ -11,10 +11,12 @@ enum class error
   unbinded,
 };
 
-inline const boost::system::error_category& category()
+inline const boost::system::error_category& error_category()
 {
-  static const struct : boost::system::error_category
+  struct category : boost::system::error_category
   {
+    virtual ~category() = default;
+
     const char* name() const noexcept override
     {
       return "smpp";
@@ -34,14 +36,16 @@ inline const boost::system::error_category& category()
           return "Unknown error";
       }
     }
-  } category;
+  };
 
-  return category;
+  static const auto category_ = category{};
+
+  return category_;
 };
 
 inline boost::system::error_code make_error_code(error e)
 {
-  return { static_cast<int>(e), category() };
+  return { static_cast<int>(e), error_category() };
 }
 } // namespace smpp
 
