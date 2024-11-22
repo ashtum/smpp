@@ -10,6 +10,6 @@ namespace smpp
 {
 inline bool constexpr is_response(command_id command_id)
 {
-  return static_cast<uint32_t>(command_id) & 0x80000000;
+    return static_cast<uint32_t>(command_id) & 0x80000000;
 }
 } // namespace smpp

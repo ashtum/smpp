@@ -11,21 +11,24 @@ namespace smpp
 {
 struct bind_transceiver_resp
 {
-  static constexpr auto command_id{ smpp::command_id::bind_transceiver_resp };
+    static constexpr auto command_id{ smpp::command_id::bind_transceiver_resp };
 
-  std::string system_id{};
-  smpp::oparam oparam{};
+    std::string system_id{};
+    smpp::oparam oparam{};
 
-  bool operator==(const bind_transceiver_resp&) const = default;
+    bool
+    operator==(const bind_transceiver_resp&) const = default;
 };
 
 namespace detail
 {
 template<>
-inline consteval auto pdu_meta<bind_transceiver_resp>()
+inline consteval auto
+pdu_meta<bind_transceiver_resp>()
 {
-  return std::tuple{ mem<c_octet_str<16>>(&bind_transceiver_resp::system_id, "system_id"),
-                     mem<smart>(&bind_transceiver_resp::oparam, "oparam") };
+    return std::tuple{ mem<c_octet_str<16>>(
+                           &bind_transceiver_resp::system_id, "system_id"),
+                       mem<smart>(&bind_transceiver_resp::oparam, "oparam") };
 }
 } // namespace detail
 } // namespace smpp

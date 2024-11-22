@@ -10,15 +10,15 @@ namespace smpp
 {
 enum class priority_flag : uint8_t
 {
-  gsm_non_priority     = 0x00,
-  gsm_priority         = 0x01,
-  ansi_136_bulk        = 0x00,
-  ansi_136_normal      = 0x01,
-  ansi_136_urgent      = 0x02,
-  ansi_136_very_urgent = 0x03,
-  is_95_normal         = 0x00,
-  is_95_interactive    = 0x01,
-  is_95_urgent         = 0x02,
-  is_95_emergency      = 0x03
+    gsm_non_priority     = 0x00,
+    gsm_priority         = 0x01,
+    ansi_136_bulk        = 0x00,
+    ansi_136_normal      = 0x01,
+    ansi_136_urgent      = 0x02,
+    ansi_136_very_urgent = 0x03,
+    is_95_normal         = 0x00,
+    is_95_interactive    = 0x01,
+    is_95_urgent         = 0x02,
+    is_95_emergency      = 0x03
 };
 } // namespace smpp

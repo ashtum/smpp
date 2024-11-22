@@ -11,21 +11,23 @@ namespace smpp
 {
 struct outbind
 {
-  static constexpr auto command_id{ smpp::command_id::outbind };
+    static constexpr auto command_id{ smpp::command_id::outbind };
 
-  std::string system_id{};
-  std::string password{};
+    std::string system_id{};
+    std::string password{};
 
-  bool operator==(const outbind&) const = default;
+    bool
+    operator==(const outbind&) const = default;
 };
 
 namespace detail
 {
 template<>
-inline consteval auto pdu_meta<outbind>()
+inline consteval auto
+pdu_meta<outbind>()
 {
-  return std::tuple{ mem<c_octet_str<16>>(&outbind::system_id, "system_id"),
-                     mem<c_octet_str<9>>(&outbind::password, "password") };
+    return std::tuple{ mem<c_octet_str<16>>(&outbind::system_id, "system_id"),
+                       mem<c_octet_str<9>>(&outbind::password, "password") };
 }
 } // namespace detail
 } // namespace smpp

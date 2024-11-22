@@ -11,17 +11,19 @@ namespace smpp
 {
 struct replace_sm_resp
 {
-  static constexpr auto command_id{ smpp::command_id::replace_sm_resp };
+    static constexpr auto command_id{ smpp::command_id::replace_sm_resp };
 
-  bool operator==(const replace_sm_resp&) const = default;
+    bool
+    operator==(const replace_sm_resp&) const = default;
 };
 
 namespace detail
 {
 template<>
-inline consteval auto pdu_meta<replace_sm_resp>()
+inline consteval auto
+pdu_meta<replace_sm_resp>()
 {
-  return std::tuple{};
+    return std::tuple{};
 }
 } // namespace detail
 } // namespace smpp

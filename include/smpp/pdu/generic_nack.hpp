@@ -11,17 +11,19 @@ namespace smpp
 {
 struct generic_nack
 {
-  static constexpr auto command_id{ smpp::command_id::generic_nack };
+    static constexpr auto command_id{ smpp::command_id::generic_nack };
 
-  bool operator==(const generic_nack&) const = default;
+    bool
+    operator==(const generic_nack&) const = default;
 };
 
 namespace detail
 {
 template<>
-inline consteval auto pdu_meta<generic_nack>()
+inline consteval auto
+pdu_meta<generic_nack>()
 {
-  return std::tuple{};
+    return std::tuple{};
 }
 } // namespace detail
 } // namespace smpp

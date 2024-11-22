@@ -12,7 +12,7 @@ namespace smpp
 {
 struct invalid_pdu
 {
-  std::vector<uint8_t> buffer;
-  std::string deserialization_error;
+    std::vector<uint8_t> buffer;
+    std::string deserialization_error;
 };
 } // namespace smpp

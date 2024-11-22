@@ -8,6 +8,7 @@
     This is only for code analysis tools to include library headers
 */
 
-int main()
+int
+main()
 {
 }

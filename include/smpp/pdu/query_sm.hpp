@@ -11,25 +11,29 @@ namespace smpp
 {
 struct query_sm
 {
-  static constexpr auto command_id{ smpp::command_id::query_sm };
+    static constexpr auto command_id{ smpp::command_id::query_sm };
 
-  std::string message_id{};
-  smpp::ton source_addr_ton{ ton::unknown };
-  smpp::npi source_addr_npi{ npi::unknown };
-  std::string source_addr{};
+    std::string message_id{};
+    smpp::ton source_addr_ton{ ton::unknown };
+    smpp::npi source_addr_npi{ npi::unknown };
+    std::string source_addr{};
 
-  bool operator==(const query_sm&) const = default;
+    bool
+    operator==(const query_sm&) const = default;
 };
 
 namespace detail
 {
 template<>
-inline consteval auto pdu_meta<query_sm>()
+inline consteval auto
+pdu_meta<query_sm>()
 {
-  return std::tuple{ mem<c_octet_str<65>>(&query_sm::message_id, "message_id"),
-                     mem<enum_u8>(&query_sm::source_addr_ton, "source_addr_ton"),
-                     mem<enum_u8>(&query_sm::source_addr_npi, "source_addr_npi"),
-                     mem<c_octet_str<21>>(&query_sm::source_addr, "source_addr") };
+    return std::tuple{
+        mem<c_octet_str<65>>(&query_sm::message_id, "message_id"),
+        mem<enum_u8>(&query_sm::source_addr_ton, "source_addr_ton"),
+        mem<enum_u8>(&query_sm::source_addr_npi, "source_addr_npi"),
+        mem<c_octet_str<21>>(&query_sm::source_addr, "source_addr")
+    };
 }
 } // namespace detail
 } // namespace smpp

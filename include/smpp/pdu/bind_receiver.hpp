@@ -11,31 +11,35 @@ namespace smpp
 {
 struct bind_receiver
 {
-  static constexpr auto command_id{ smpp::command_id::bind_receiver };
+    static constexpr auto command_id{ smpp::command_id::bind_receiver };
 
-  std::string system_id{};
-  std::string password{};
-  std::string system_type{};
-  smpp::interface_version interface_version{ interface_version::smpp_3_4 };
-  smpp::ton addr_ton{ ton::unknown };
-  smpp::npi addr_npi{ npi::unknown };
-  std::string address_range{};
+    std::string system_id{};
+    std::string password{};
+    std::string system_type{};
+    smpp::interface_version interface_version{ interface_version::smpp_3_4 };
+    smpp::ton addr_ton{ ton::unknown };
+    smpp::npi addr_npi{ npi::unknown };
+    std::string address_range{};
 
-  bool operator==(const bind_receiver&) const = default;
+    bool
+    operator==(const bind_receiver&) const = default;
 };
 
 namespace detail
 {
 template<>
-inline consteval auto pdu_meta<bind_receiver>()
+inline consteval auto
+pdu_meta<bind_receiver>()
 {
-  return std::tuple{ mem<c_octet_str<16>>(&bind_receiver::system_id, "system_id"),
-                     mem<c_octet_str<9>>(&bind_receiver::password, "password"),
-                     mem<c_octet_str<13>>(&bind_receiver::system_type, "system_type"),
-                     mem<enum_u8>(&bind_receiver::interface_version, "interface_version"),
-                     mem<enum_u8>(&bind_receiver::addr_ton, "addr_ton"),
-                     mem<enum_u8>(&bind_receiver::addr_npi, "addr_npi"),
-                     mem<c_octet_str<41>>(&bind_receiver::address_range, "address_range") };
+    return std::tuple{
+        mem<c_octet_str<16>>(&bind_receiver::system_id, "system_id"),
+        mem<c_octet_str<9>>(&bind_receiver::password, "password"),
+        mem<c_octet_str<13>>(&bind_receiver::system_type, "system_type"),
+        mem<enum_u8>(&bind_receiver::interface_version, "interface_version"),
+        mem<enum_u8>(&bind_receiver::addr_ton, "addr_ton"),
+        mem<enum_u8>(&bind_receiver::addr_npi, "addr_npi"),
+        mem<c_octet_str<41>>(&bind_receiver::address_range, "address_range")
+    };
 }
 } // namespace detail
 } // namespace smpp

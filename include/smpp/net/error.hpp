@@ -6,46 +6,50 @@ namespace smpp
 {
 enum class error
 {
-  serialization_failed = 1,
-  enquire_link_timeout,
-  unbinded,
+    serialization_failed = 1,
+    enquire_link_timeout,
+    unbinded,
 };
 
-inline const boost::system::error_category& error_category()
+inline const boost::system::error_category&
+error_category()
 {
-  struct category : boost::system::error_category
-  {
-    virtual ~category() = default;
-
-    const char* name() const noexcept override
+    struct category : boost::system::error_category
     {
-      return "smpp";
-    }
+        virtual ~category() = default;
 
-    std::string message(int ev) const override
-    {
-      switch (static_cast<error>(ev))
-      {
-        case error::serialization_failed:
-          return "PDU serialization failed";
-        case error::enquire_link_timeout:
-          return "The session was closed due to enquire_link timeout";
-        case error::unbinded:
-          return "The session was closed gracefully";
-        default:
-          return "Unknown error";
-      }
-    }
-  };
+        const char*
+        name() const noexcept override
+        {
+            return "smpp";
+        }
 
-  static const auto category_ = category{};
+        std::string
+        message(int ev) const override
+        {
+            switch(static_cast<error>(ev))
+            {
+            case error::serialization_failed:
+                return "PDU serialization failed";
+            case error::enquire_link_timeout:
+                return "The session was closed due to enquire_link timeout";
+            case error::unbinded:
+                return "The session was closed gracefully";
+            default:
+                return "Unknown error";
+            }
+        }
+    };
 
-  return category_;
+    static const auto category_ = category{};
+
+    return category_;
 };
 
-inline boost::system::error_code make_error_code(error e)
+inline boost::system::error_code
+make_error_code(error e)
 {
-  return { static_cast<int>(e), error_category() };
+    return { static_cast<int>(e), error_category() };
 }
 } // namespace smpp
 
@@ -54,6 +58,6 @@ namespace boost::system
 template<>
 struct is_error_code_enum<::smpp::error>
 {
-  static bool const value = true;
+    static bool const value = true;
 };
 } // namespace boost::system

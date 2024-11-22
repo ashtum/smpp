@@ -10,6 +10,6 @@ namespace smpp
 {
 enum class interface_version : uint8_t
 {
-  smpp_3_4 = 0x34
+    smpp_3_4 = 0x34
 };
 } // namespace smpp
