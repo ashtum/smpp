@@ -16,25 +16,25 @@ asio::awaitable<void> handle_session(asio::ip::tcp::socket socket)
     auto session = smpp::session{ std::move(socket) };
 
     fmt::print("Waiting for bind request...\n");
-    auto [pdu, seq_num, status] = co_await session.async_receive(asio::deferred);
+    auto [pdu, seq_num, status] = co_await session.async_receive();
 
     auto& bind_transceiver = std::get<smpp::bind_transceiver>(pdu);
     fmt::print("bind_transceiver is received, system_id: {}\n", bind_transceiver.system_id);
 
     fmt::print("Sending bind_transceiver_resp...\n");
     auto bind_transceiver_resp = smpp::bind_transceiver_resp{ .system_id = "sever_01" };
-    co_await session.async_send(bind_transceiver_resp, seq_num, smpp::command_status::rok, asio::deferred);
+    co_await session.async_send(bind_transceiver_resp, seq_num, smpp::command_status::rok);
 
     for (;;)
     {
-      auto [pdu, seq_num, status] = co_await session.async_receive(asio::deferred);
+      auto [pdu, seq_num, status] = co_await session.async_receive();
 
       auto& submit_sm = std::get<smpp::submit_sm>(pdu);
       fmt::print("submit_sm received, dest_addr: {}\n", submit_sm.dest_addr);
 
       fmt::print("Sending submit_sm_resp...\n");
       auto submit_sm_resp = smpp::submit_sm_resp{ .message_id = "123" };
-      co_await session.async_send(submit_sm_resp, seq_num, smpp::command_status::rok, asio::deferred);
+      co_await session.async_send(submit_sm_resp, seq_num, smpp::command_status::rok);
     }
   }
   catch (const std::exception& e)
@@ -52,7 +52,7 @@ asio::awaitable<void> acceptor()
 
     for (;;)
     {
-      auto socket = co_await acceptor.async_accept(asio::deferred);
+      auto socket = co_await acceptor.async_accept();
       asio::co_spawn(executor, handle_session(std::move(socket)), asio::detached);
     }
   }

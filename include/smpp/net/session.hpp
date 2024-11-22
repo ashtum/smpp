@@ -13,9 +13,10 @@
 #include <smpp/net/pdu_variant.hpp>
 #include <smpp/net/session.hpp>
 
-#include <boost/asio/as_tuple.hpp>
+#include <boost/asio/cancel_after.hpp>
+#include <boost/asio/compose.hpp>
+#include <boost/asio/coroutine.hpp>
 #include <boost/asio/deferred.hpp>
-#include <boost/asio/experimental/co_composed.hpp>
 #include <boost/asio/experimental/parallel_group.hpp>
 #include <boost/asio/ip/tcp.hpp>
 #include <boost/asio/write.hpp>
@@ -25,11 +26,10 @@ namespace smpp
 namespace asio = boost::asio;
 class session
 {
-  static constexpr auto deferred_tuple{ asio::as_tuple(asio::deferred) };
   static constexpr auto header_length{ 16 };
   asio::ip::tcp::socket socket_;
-  detail::static_flat_buffer<uint8_t, 1024 * 1024> receive_buf_{};
-  std::vector<uint8_t> send_buf_{};
+  detail::static_flat_buffer<uint8_t, 1024 * 1024> receive_buf_;
+  std::vector<uint8_t> send_buf_;
   asio::steady_timer send_cv_;
   asio::steady_timer enquire_link_timer_;
   std::chrono::seconds enquire_link_interval_{};
@@ -72,9 +72,8 @@ public:
    * @param token The completion_token that will be used to produce a completion handler, which will be called when the
    * send completes
    */
-  auto async_send(
-    const request_pdu auto& pdu,
-    asio::completion_token_for<void(boost::system::error_code, uint32_t)> auto&& token);
+  template<asio::completion_token_for<void(boost::system::error_code, uint32_t)> CompletionToken = asio::deferred_t>
+  auto async_send(const request_pdu auto& pdu, CompletionToken&& token = asio::deferred_t{});
 
   /// Start an asynchronous send for response PDUs
   /**
@@ -92,11 +91,12 @@ public:
    * @param token The completion_token that will be used to produce a completion handler, which will be called when the
    * send completes
    */
+  template<asio::completion_token_for<void(boost::system::error_code)> CompletionToken = asio::deferred_t>
   auto async_send(
     const response_pdu auto& pdu,
     uint32_t sequence_number,
     command_status command_status,
-    asio::completion_token_for<void(boost::system::error_code)> auto&& token);
+    CompletionToken&& token = asio::deferred_t{});
 
   /// Start an asynchronous send for initiating unbind process
   /**
@@ -118,7 +118,8 @@ public:
    * @param token The completion_token that will be used to produce a completion handler, which will be called when the
    * send completes
    */
-  auto async_send_unbind(asio::completion_token_for<void(boost::system::error_code)> auto&& token);
+  template<asio::completion_token_for<void(boost::system::error_code)> CompletionToken = asio::deferred_t>
+  auto async_send_unbind(CompletionToken&& token = asio::deferred_t{});
 
   /// Start an asynchronous receive
   /**
@@ -142,8 +143,10 @@ public:
    * @param token The completion_token that will be used to produce a completion handler, which will be called when the
    * receive completes
    */
-  auto async_receive(
-    asio::completion_token_for<void(boost::system::error_code, pdu_variant, uint32_t, command_status)> auto&& token);
+  template<
+    asio::completion_token_for<void(boost::system::error_code, pdu_variant, uint32_t, command_status)> CompletionToken =
+      asio::deferred_t>
+  auto async_receive(CompletionToken&& token = asio::deferred_t{});
 
 private:
   uint32_t next_sequence_number();
@@ -154,6 +157,8 @@ private:
     command_id command_id,
     uint32_t sequence_number,
     asio::completion_token_for<void(boost::system::error_code)> auto&& token);
+
+  class receive_op;
 };
 
 inline session::session(asio::ip::tcp::socket socket, std::chrono::seconds enquire_link_interval)
@@ -193,243 +198,297 @@ auto session::async_send_command(
   uint32_t sequence_number,
   asio::completion_token_for<void(boost::system::error_code)> auto&& token)
 {
-  return asio::async_initiate<decltype(token), void(boost::system::error_code)>(
-    asio::experimental::co_composed<void(boost::system::error_code)>(
-      [](auto state, auto* self, auto command_id, auto sequence_number) -> void
+  return asio::async_compose<decltype(token), void(boost::system::error_code)>(
+    [this, command_id, sequence_number, c = asio::coroutine{}](
+      auto&& self, boost::system::error_code ec = {}, std::size_t n = {}) mutable
+    {
+      BOOST_ASIO_CORO_REENTER(c)
       {
-        while (!self->send_buf_.empty()) // ongoing send operation
+        while (!send_buf_.empty()) // ongoing send operation
         {
-          auto [ec] = co_await self->send_cv_.async_wait(deferred_tuple);
-          if (ec != asio::error::operation_aborted || !!state.cancelled())
-            co_return ec;
+          BOOST_ASIO_CORO_YIELD
+          send_cv_.async_wait(std::move(self));
+          if (ec != asio::error::operation_aborted || !!self.cancelled())
+            return self.complete(ec);
         }
 
-        state.reset_cancellation_state(asio::enable_terminal_cancellation());
+        self.reset_cancellation_state(asio::enable_terminal_cancellation());
+        send_buf_.resize(header_length); // reserved for header
+        detail::serialize_header(
+          std::span<uint8_t, header_length>{ send_buf_ }, header_length, command_id, sequence_number);
 
-        self->send_buf_.resize(header_length); // reserved for header
-        auto header_buf = std::span<uint8_t, header_length>{ self->send_buf_ };
-        detail::serialize_header(header_buf, header_length, command_id, sequence_number);
-        auto [ec, _] = co_await asio::async_write(self->socket_, asio::buffer(self->send_buf_), deferred_tuple);
+        BOOST_ASIO_CORO_YIELD
+        asio::async_write(
+          socket_, asio::buffer(send_buf_), asio::cancel_after(enquire_link_interval_, std::move(self)));
 
-        self->send_buf_.clear();
-        self->send_cv_.cancel_one();
-        co_return ec;
-      },
-      socket_),
+        if (ec == asio::error::operation_aborted && !self.cancelled())
+          return self.complete(error::enquire_link_timeout);
+
+        send_buf_.clear();
+        send_cv_.cancel_one();
+        self.complete(ec);
+      }
+    },
     token,
-    this,
-    command_id,
-    sequence_number);
+    socket_);
 }
 
-auto session::async_send(
-  const request_pdu auto& pdu,
-  asio::completion_token_for<void(boost::system::error_code, uint32_t)> auto&& token)
+template<asio::completion_token_for<void(boost::system::error_code, uint32_t)> CompletionToken>
+auto session::async_send(const request_pdu auto& pdu, CompletionToken&& token)
 {
-  return asio::async_initiate<decltype(token), void(boost::system::error_code, uint32_t)>(
-    asio::experimental::co_composed<void(boost::system::error_code, uint32_t)>(
-      [](auto state, auto* self, auto* const pdu) -> void
+  return asio::async_compose<decltype(token), void(boost::system::error_code, uint32_t)>(
+    [this, &pdu, sequence_number = uint32_t{}, c = asio::coroutine{}](
+      auto&& self, boost::system::error_code ec = {}, std::size_t n = {}) mutable
+    {
+      BOOST_ASIO_CORO_REENTER(c)
       {
-        auto command_id      = std::decay_t<decltype(*pdu)>::command_id;
-        auto sequence_number = self->next_sequence_number();
-
-        while (!self->send_buf_.empty()) // ongoing send operation
+        while (!send_buf_.empty()) // ongoing send operation
         {
-          auto [ec] = co_await self->send_cv_.async_wait(deferred_tuple);
-          if (ec != asio::error::operation_aborted || !!state.cancelled())
-            co_return { ec, {} };
+          BOOST_ASIO_CORO_YIELD
+          send_cv_.async_wait(std::move(self));
+          if (ec != asio::error::operation_aborted || !!self.cancelled())
+            return self.complete(ec, {});
         }
 
-        state.reset_cancellation_state(asio::enable_terminal_cancellation());
-
-        auto ec = boost::system::error_code{};
+        self.reset_cancellation_state(asio::enable_terminal_cancellation());
+        send_buf_.resize(header_length); // reserved for header
         try
         {
-          self->send_buf_.resize(header_length); // reserved for header
-          serialize_to(&self->send_buf_, *pdu);
-          auto header_buf = std::span<uint8_t, header_length>{ self->send_buf_ };
-          detail::serialize_header(header_buf, self->send_buf_.size(), command_id, sequence_number);
-          auto [wec, _] = co_await asio::async_write(self->socket_, asio::buffer(self->send_buf_), deferred_tuple);
-          ec            = wec;
+          serialize_to(&send_buf_, pdu);
         }
         catch (const std::exception&)
         {
-          ec = error::serialization_failed;
+          return self.complete(error::serialization_failed, {});
         }
+        sequence_number = next_sequence_number();
+        detail::serialize_header(
+          std::span<uint8_t, header_length>{ send_buf_ },
+          send_buf_.size(),
+          std::decay_t<decltype(pdu)>::command_id,
+          sequence_number);
 
-        self->send_buf_.clear();
-        self->send_cv_.cancel_one();
-        co_return { ec, sequence_number };
-      },
-      socket_),
+        BOOST_ASIO_CORO_YIELD
+        asio::async_write(socket_, asio::buffer(send_buf_), std::move(self));
+
+        send_buf_.clear();
+        send_cv_.cancel_one();
+        self.complete(ec, sequence_number);
+      }
+    },
     token,
-    this,
-    &pdu);
+    socket_);
 }
 
+template<asio::completion_token_for<void(boost::system::error_code)> CompletionToken>
 auto session::async_send(
   const response_pdu auto& pdu,
   uint32_t sequence_number,
   command_status command_status,
-  asio::completion_token_for<void(boost::system::error_code)> auto&& token)
+  CompletionToken&& token)
 {
-  return asio::async_initiate<decltype(token), void(boost::system::error_code)>(
-    asio::experimental::co_composed<void(boost::system::error_code)>(
-      [](auto state, auto* self, auto* const pdu, auto sequence_number, auto command_status) -> void
+  return asio::async_compose<decltype(token), void(boost::system::error_code)>(
+    [this, &pdu, sequence_number, command_status, c = asio::coroutine{}](
+      auto&& self, boost::system::error_code ec = {}, std::size_t n = {}) mutable
+    {
+      BOOST_ASIO_CORO_REENTER(c)
       {
-        auto command_id = std::decay_t<decltype(*pdu)>::command_id;
-
-        while (!self->send_buf_.empty()) // ongoing send operation
+        while (!send_buf_.empty()) // ongoing send operation
         {
-          auto [ec] = co_await self->send_cv_.async_wait(deferred_tuple);
-          if (ec != asio::error::operation_aborted || !!state.cancelled())
-            co_return ec;
+          BOOST_ASIO_CORO_YIELD
+          send_cv_.async_wait(std::move(self));
+          if (ec != asio::error::operation_aborted || !!self.cancelled())
+            return self.complete(ec);
         }
 
-        state.reset_cancellation_state(asio::enable_terminal_cancellation());
-
-        auto ec = boost::system::error_code{};
+        self.reset_cancellation_state(asio::enable_terminal_cancellation());
+        send_buf_.resize(header_length); // reserved for header
         try
         {
-          self->send_buf_.resize(header_length); // reserved for header
-          serialize_to(&self->send_buf_, *pdu);
-          auto header_buf = std::span<uint8_t, header_length>{ self->send_buf_ };
-          detail::serialize_header(header_buf, self->send_buf_.size(), command_id, sequence_number, command_status);
-          auto [wec, _] = co_await asio::async_write(self->socket_, asio::buffer(self->send_buf_), deferred_tuple);
-          ec            = wec;
+          serialize_to(&send_buf_, pdu);
         }
         catch (const std::exception&)
         {
-          ec = error::serialization_failed;
+          return self.complete(error::serialization_failed);
         }
+        detail::serialize_header(
+          std::span<uint8_t, header_length>{ send_buf_ },
+          send_buf_.size(),
+          std::decay_t<decltype(pdu)>::command_id,
+          sequence_number,
+          command_status);
 
-        self->send_buf_.clear();
-        self->send_cv_.cancel_one();
-        co_return ec;
-      },
-      socket_),
+        BOOST_ASIO_CORO_YIELD
+        asio::async_write(socket_, asio::buffer(send_buf_), std::move(self));
+
+        send_buf_.clear();
+        send_cv_.cancel_one();
+        self.complete(ec);
+      }
+    },
     token,
-    this,
-    &pdu,
-    sequence_number,
-    command_status);
+    socket_);
 }
 
-auto session::async_send_unbind(asio::completion_token_for<void(boost::system::error_code)> auto&& token)
+template<asio::completion_token_for<void(boost::system::error_code)> CompletionToken>
+auto session::async_send_unbind(CompletionToken&& token)
 {
-  return async_send_command(command_id::unbind, next_sequence_number(), token);
+  return async_send_command(command_id::unbind, next_sequence_number(), std::forward<decltype(token)>(token));
 }
 
-auto session::async_receive(
-  asio::completion_token_for<void(boost::system::error_code, pdu_variant, uint32_t, command_status)> auto&& token)
+class session::receive_op
 {
-  return asio::async_initiate<decltype(token), void(boost::system::error_code, pdu_variant, uint32_t, command_status)>(
-    asio::experimental::co_composed<void(boost::system::error_code, pdu_variant, uint32_t, command_status)>(
-      [](auto state, auto* self) -> void
+  session* s_;
+  asio::coroutine c_;
+  uint32_t command_length_       = {};
+  command_id command_id_         = {};
+  command_status command_status_ = {};
+  uint32_t sequence_number_      = {};
+  bool needs_more_               = false;
+  bool needs_post_               = true;
+  bool pending_enquire_link_     = false;
+  bool timedout_                 = false;
+
+public:
+  explicit receive_op(session* s)
+    : s_{ s }
+  {
+  }
+
+  void operator()(
+    auto&& self,
+    std::array<std::size_t, 2> order,
+    boost::system::error_code receive_ec,
+    std::size_t received,
+    boost::system::error_code timer_ec)
+  {
+    needs_post_ = false;
+    needs_more_ = false;
+    s_->receive_buf_.commit(received);
+
+    if (order[0] == 0) // receive completed first
+    {
+      pending_enquire_link_ = false;
+      if (receive_ec)
+        return self.complete(receive_ec, {}, {}, {});
+    }
+    else
+    {
+      timedout_ = true;
+    }
+
+    operator()(std::move(self));
+  }
+
+  void operator()(auto&& self, boost::system::error_code ec = {})
+  {
+    BOOST_ASIO_CORO_REENTER(c_)
+    {
+      for (;;)
       {
-        for (auto needs_more = false, needs_post = true, pending_enquire_link = false;;)
+        using enum smpp::command_id;
+
+        if (needs_more_)
         {
-          using enum command_id;
-
-          if (needs_more)
-          {
-            self->enquire_link_timer_.expires_after(self->enquire_link_interval_);
-            auto [order, receive_ec, received, timer_ec] =
-              co_await asio::experimental::make_parallel_group(
-                [&](auto token) { return self->socket_.async_receive(self->receive_buf_.prepare(64 * 1024), token); },
-                [&](auto token) { return self->enquire_link_timer_.async_wait(token); })
-                .async_wait(asio::experimental::wait_for_one(), deferred_tuple);
-
-            needs_post = false;
-            needs_more = false;
-            self->receive_buf_.commit(received);
-
-            if (order[0] == 0) // receive completed first
-            {
-              pending_enquire_link = false;
-              if (receive_ec)
-                co_return { receive_ec, {}, {}, {} };
-            }
-            else if (pending_enquire_link)
-            {
-              co_await self->async_send_command(unbind, self->next_sequence_number(), deferred_tuple);
-              self->shutdown_socket();
-              co_return { error::enquire_link_timeout, {}, {}, {} };
-            }
-            else
-            {
-              pending_enquire_link = true;
-              co_await self->async_send_command(enquire_link, self->next_sequence_number(), deferred_tuple);
-            }
-          }
-
-          if (self->receive_buf_.size() < header_length)
-          {
-            needs_more = true;
-            continue;
-          }
-
-          auto header_buf = std::span<const uint8_t, header_length>{ self->receive_buf_ };
-          auto [command_length, command_id, command_status, sequence_number] = detail::deserialize_header(header_buf);
-
-          if (self->receive_buf_.size() < command_length)
-          {
-            needs_more = true;
-            continue;
-          }
-
-          if (command_id == enquire_link)
-          {
-            co_await self->async_send_command(enquire_link_resp, sequence_number, deferred_tuple);
-            self->receive_buf_.consume(command_length);
-          }
-          else if (command_id == enquire_link_resp)
-          {
-            self->receive_buf_.consume(command_length);
-          }
-          else if (command_id == unbind || command_id == unbind_resp)
-          {
-            if (command_id == unbind)
-            {
-              auto [ec] = co_await self->async_send_command(unbind_resp, sequence_number, deferred_tuple);
-              if (ec)
-                co_return { ec, {}, {}, {} };
-            }
-            self->shutdown_socket();
-            self->receive_buf_.consume(command_length);
-            co_return { error::unbinded, {}, {}, {} };
-          }
-          else
-          {
-            auto body_buf =
-              std::span{ self->receive_buf_.begin() + header_length, self->receive_buf_.begin() + command_length };
-            auto pdu = pdu_variant{};
-            try
-            {
-              [&, command_id = command_id ]<std::size_t... Is>(std::index_sequence<Is...>)
-              {
-                if (!((command_id == std::decay_t<decltype(std::get<Is>(pdu_variant{}))>::command_id
-                         ? (pdu = deserialize<std::decay_t<decltype(std::get<Is>(pdu_variant{}))>>(body_buf), true)
-                         : false) ||
-                      ...))
-                  throw std::logic_error{ "Unknown PDU" };
-              }
-              (std::make_index_sequence<std::variant_size_v<pdu_variant> - 1>()); // -1 because of invalid_pdu
-            }
-            catch (const std::exception& e)
-            {
-              pdu =
-                invalid_pdu{ { self->receive_buf_.begin(), self->receive_buf_.begin() + command_length }, e.what() };
-            }
-            self->receive_buf_.consume(command_length);
-            if (needs_post) // prevents stack growth
-              co_await asio::post(state.get_io_executor(), asio::deferred);
-            co_return { {}, std::move(pdu), sequence_number, command_status };
-          }
+          s_->enquire_link_timer_.expires_after(s_->enquire_link_interval_);
+          BOOST_ASIO_CORO_YIELD
+          asio::experimental::make_parallel_group(
+            [&](auto token) { return s_->socket_.async_receive(s_->receive_buf_.prepare(64 * 1024), token); },
+            [&](auto token) { return s_->enquire_link_timer_.async_wait(token); })
+            .async_wait(asio::experimental::wait_for_one(), std::move(self));
         }
-      },
-      socket_),
-    token,
-    this);
+
+        if (timedout_)
+        {
+          if (pending_enquire_link_)
+          {
+            BOOST_ASIO_CORO_YIELD
+            s_->async_send_command(unbind, s_->next_sequence_number(), std::move(self));
+            s_->shutdown_socket();
+            return self.complete(error::enquire_link_timeout, {}, {}, {});
+          }
+          pending_enquire_link_ = true;
+          BOOST_ASIO_CORO_YIELD
+          s_->async_send_command(enquire_link, s_->next_sequence_number(), std::move(self));
+          timedout_ = false;
+        }
+
+        if (s_->receive_buf_.size() < header_length)
+        {
+          needs_more_ = true;
+          continue;
+        }
+
+        std::tie(command_length_, command_id_, command_status_, sequence_number_) =
+          detail::deserialize_header(std::span<const uint8_t, header_length>{ s_->receive_buf_ });
+
+        if (s_->receive_buf_.size() < command_length_)
+        {
+          needs_more_ = true;
+          continue;
+        }
+
+        if (command_id_ == enquire_link)
+        {
+          BOOST_ASIO_CORO_YIELD
+          s_->async_send_command(enquire_link_resp, sequence_number_, std::move(self));
+          s_->receive_buf_.consume(command_length_);
+        }
+        else if (command_id_ == enquire_link_resp)
+        {
+          s_->receive_buf_.consume(command_length_);
+        }
+        else if (command_id_ == unbind || command_id_ == unbind_resp)
+        {
+          if (command_id_ == unbind)
+          {
+            BOOST_ASIO_CORO_YIELD
+            s_->async_send_command(unbind_resp, sequence_number_, std::move(self));
+            if (ec)
+              return self.complete(ec, {}, {}, {});
+          }
+          s_->shutdown_socket();
+          s_->receive_buf_.consume(command_length_);
+          return self.complete(error::unbinded, {}, {}, {});
+        }
+        else
+        {
+          if (needs_post_) // prevents stack growth
+          {
+            BOOST_ASIO_CORO_YIELD
+            asio::post(std::move(self));
+          }
+
+          auto body_buf =
+            std::span{ s_->receive_buf_.begin() + header_length, s_->receive_buf_.begin() + command_length_ };
+          auto pdu = pdu_variant{};
+          try
+          {
+            [&]<std::size_t... Is>(std::index_sequence<Is...>)
+            {
+              if (!((command_id_ == std::decay_t<decltype(std::get<Is>(pdu_variant{}))>::command_id
+                       ? (pdu = deserialize<std::decay_t<decltype(std::get<Is>(pdu_variant{}))>>(body_buf), true)
+                       : false) ||
+                    ...))
+                throw std::logic_error{ "Unknown PDU" };
+            }(std::make_index_sequence<std::variant_size_v<pdu_variant> - 1>()); // -1 because of invalid_pdu
+          }
+          catch (const std::exception& e)
+          {
+            pdu = invalid_pdu{ { s_->receive_buf_.begin(), s_->receive_buf_.begin() + command_length_ }, e.what() };
+          }
+          s_->receive_buf_.consume(command_length_);
+          return self.complete({}, std::move(pdu), sequence_number_, command_status_);
+        }
+      }
+    }
+  }
+};
+
+template<
+  asio::completion_token_for<void(boost::system::error_code, pdu_variant, uint32_t, command_status)> CompletionToken>
+auto session::async_receive(CompletionToken&& token)
+{
+  return asio::async_compose<decltype(token), void(boost::system::error_code, pdu_variant, uint32_t, command_status)>(
+    receive_op{ this }, token, socket_);
 }
 } // namespace smpp

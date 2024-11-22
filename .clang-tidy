@@ -1,6 +1,7 @@
 FormatStyle:        'file'
 WarningsAsErrors:   '*'
 Checks:             '*,
+                    -bugprone-move-forwarding-reference,
                     -readability-function-cognitive-complexity,
                     -readability-identifier-length,-warnings-as-errors,
                     -llvmlibc-*,
