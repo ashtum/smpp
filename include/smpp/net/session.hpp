@@ -45,7 +45,7 @@ public:
      * @param enquire_link_interval The interval for detecting inactivity and
      * enquire_link operation
      */
-    explicit session(
+    session(
         asio::ip::tcp::socket socket,
         std::chrono::seconds enquire_link_interval = std::chrono::seconds{
             60 });

@@ -9,44 +9,41 @@
 #include <iostream>
 
 namespace asio = boost::asio;
-namespace ch   = std::chrono;
 
 asio::awaitable<void>
 client()
 {
-    auto exec   = co_await asio::this_coro::executor;
-    auto socket = asio::ip::tcp::socket{ exec };
+    auto executor = co_await asio::this_coro::executor;
+    auto endpoint = asio::ip::tcp::endpoint{ asio::ip::tcp::v4(), 2775 };
+    auto timer    = asio::steady_timer{ executor };
+    auto session  = smpp::session{ asio::ip::tcp::socket{ executor } };
 
-    co_await socket.async_connect({ asio::ip::tcp::v4(), 2775 });
-    std::cout << "Connection complete, sending bind_transceiver..."
-              << std::endl;
+    co_await session.next_layer().async_connect(endpoint);
 
-    auto session          = smpp::session{ std::move(socket) };
-    auto bind_transceiver = smpp::bind_transceiver{ .system_id = "client_01" };
-    co_await session.async_send(bind_transceiver);
+    auto req = smpp::bind_transceiver{ .system_id = "client_01" };
+    std::cout << "Sending bind_transceiver...\n";
+    co_await session.async_send(req);
 
     auto [pdu, seq_num, status] = co_await session.async_receive();
-    std::cout << "bind_transceiver_resp received, system_id: "
-              << std::get<smpp::bind_transceiver_resp>(pdu).system_id
-              << std::endl;
+    std::cout << "bind_transceiver_resp, system_id: "
+              << get<smpp::bind_transceiver_resp>(pdu).system_id << '\n';
 
-    for(auto i = 1; i <= 3; i++)
+    for(auto i = 0; i < 3; i++)
     {
-        std::cout << "Sending submit_sm..." << std::endl;
+        auto req = smpp::submit_sm{ .dest_addr = std::to_string(1000 + i) };
 
-        auto submit_sm =
-            smpp::submit_sm{ .dest_addr = std::to_string(1000 + i) };
-        co_await session.async_send(submit_sm);
+        std::cout << "Sending submit_sm...\n";
+        co_await session.async_send(req);
 
         auto [pdu, seq_num, status] = co_await session.async_receive();
-        std::cout << "submit_sm_resp received, message_id: "
-                  << std::get<smpp::submit_sm_resp>(pdu).message_id
-                  << std::endl;
+        std::cout << "submit_sm_resp, message_id: "
+                  << get<smpp::submit_sm_resp>(pdu).message_id << '\n';
 
-        co_await asio::steady_timer{ exec, ch::seconds{ 3 } }.async_wait();
+        timer.expires_after(std::chrono::seconds{ 1 });
+        co_await timer.async_wait();
     }
 
-    std::cout << "Unbinding session..." << std::endl;
+    std::cout << "Unbinding session...\n";
     co_await session.async_send_unbind();
 
     co_await session.async_receive();

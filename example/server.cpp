@@ -11,32 +11,27 @@
 namespace asio = boost::asio;
 
 asio::awaitable<void>
-handle_session(asio::ip::tcp::socket socket)
+handle_session(smpp::session session)
 {
-    auto session = smpp::session{ std::move(socket) };
-
-    std::cout << "Waiting for bind request..." << std::endl;
+    std::cout << "Waiting for bind request...\n";
     auto [pdu, seq_num, status] = co_await session.async_receive();
 
-    std::cout << "bind_transceiver is received, system_id: "
-              << std::get<smpp::bind_transceiver>(pdu).system_id << std::endl;
+    std::cout << "bind_transceiver, system_id: "
+              << get<smpp::bind_transceiver>(pdu).system_id << '\n';
 
-    std::cout << "Sending bind_transceiver_resp..." << std::endl;
-    auto bind_transceiver_resp =
-        smpp::bind_transceiver_resp{ .system_id = "sever_01" };
-    co_await session.async_send(
-        bind_transceiver_resp, seq_num, smpp::command_status::rok);
+    std::cout << "Sending bind_transceiver_resp...\n";
+    auto req = smpp::bind_transceiver_resp{ .system_id = "server_01" };
+    co_await session.async_send(req, seq_num, smpp::command_status::rok);
 
     for(;;)
     {
         auto [pdu, seq_num, status] = co_await session.async_receive();
-        std::cout << "submit_sm received, dest_addr: "
-                  << std::get<smpp::submit_sm>(pdu).dest_addr << std::endl;
+        std::cout << "submit_sm, dest_addr: "
+                  << get<smpp::submit_sm>(pdu).dest_addr << '\n';
 
-        std::cout << "Sending submit_sm_resp..." << std::endl;
-        auto submit_sm_resp = smpp::submit_sm_resp{ .message_id = "123" };
-        co_await session.async_send(
-            submit_sm_resp, seq_num, smpp::command_status::rok);
+        std::cout << "Sending submit_sm_resp...\n";
+        auto resp = smpp::submit_sm_resp{ .message_id = "123" };
+        co_await session.async_send(resp, seq_num, smpp::command_status::rok);
     }
 }
 
@@ -44,8 +39,8 @@ asio::awaitable<void>
 acceptor()
 {
     auto executor = co_await asio::this_coro::executor;
-    auto acceptor =
-        asio::ip::tcp::acceptor(executor, { asio::ip::tcp::v4(), 2775 });
+    auto endpoint = asio::ip::tcp::endpoint{ asio::ip::tcp::v4(), 2775 };
+    auto acceptor = asio::ip::tcp::acceptor(executor, endpoint);
 
     for(;;)
     {
@@ -62,8 +57,7 @@ acceptor()
                 }
                 catch(const std::exception& e)
                 {
-                    std::cerr << "Exception in session: " << e.what()
-                              << std::endl;
+                    std::cerr << "Exception in session: " << e.what() << '\n';
                 }
             });
     }
@@ -89,6 +83,6 @@ main(int, const char**)
     }
     catch(const std::exception& e)
     {
-        std::cerr << "Exception: " << e.what() << std::endl;
+        std::cerr << "Exception: " << e.what() << '\n';
     }
 }
