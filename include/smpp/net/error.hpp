@@ -32,9 +32,9 @@ error_category()
             case error::serialization_failed:
                 return "PDU serialization failed";
             case error::enquire_link_timeout:
-                return "The session was closed due to enquire_link timeout";
+                return "enquire_link timeout";
             case error::unbinded:
-                return "The session was closed gracefully";
+                return "unbinded";
             default:
                 return "Unknown error";
             }
