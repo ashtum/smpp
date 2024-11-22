@@ -258,6 +258,7 @@ auto session::async_send(const request_pdu auto& pdu, CompletionToken&& token)
         }
         catch (const std::exception&)
         {
+          send_buf_.clear();
           return self.complete(error::serialization_failed, {});
         }
         sequence_number = next_sequence_number();
@@ -308,6 +309,7 @@ auto session::async_send(
         }
         catch (const std::exception&)
         {
+          send_buf_.clear();
           return self.complete(error::serialization_failed);
         }
         detail::serialize_header(

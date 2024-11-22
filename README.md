@@ -11,7 +11,7 @@ This library is written using Asio's composed operation and conforms to Asio uni
 which means it can be used with callbacks, coroutines, futures, Boost.Fiber and any other form of completion tokens.
 ```C++
 // C++20's coroutines
-auto sequence_number = co_await session.async_send(submit_sm, asio::deferred);
+auto sequence_number = co_await session.async_send(submit_sm);
 
 // Callbacks
 session.async_send(submit_sm, [](auto ec,auto sequence_number){});
@@ -25,7 +25,7 @@ A client connects a TCP socket to the server and constructs a `smpp::session`:
 ```C++
 auto socket = asio::ip::tcp::socket{ executor };
 
-co_await socket.async_connect({ asio::ip::tcp::v4(), 2775 }, asio::deferred);
+co_await socket.async_connect({ asio::ip::tcp::v4(), 2775 });
 
 auto session = smpp::session{ std::move(socket) };
 ```
@@ -36,7 +36,7 @@ auto acceptor = asio::ip::tcp::acceptor(executor, { asio::ip::tcp::v4(), 2775 })
 
 for (;;)
 {
-  auto socket = co_await acceptor.async_accept(asio::deferred);
+  auto socket = co_await acceptor.async_accept();
   auto session = smpp::session{ std::move(socket) };
   //...
 }
@@ -45,12 +45,12 @@ for (;;)
 #### Overloads for sending requests and responses
 Sending a request completes with a `sequence_number` which can be used to map the received responses on the arrival.
 ```C++
-auto sequence_number = co_await session.async_send(submit_sm, asio::deferred);
+auto sequence_number = co_await session.async_send(submit_sm);
 ```
 
 Sending a response needs the `sequence_number` and `command_status`.
 ```C++
-co_await session.async_send(submit_sm_resp, sequence_number, smpp::command_status::rok, asio::deferred);
+co_await session.async_send(submit_sm_resp, sequence_number, smpp::command_status::rok);
 ```
 
 #### Enquire_link operation is handled by `smpp::session`
