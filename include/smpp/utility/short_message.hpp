@@ -22,12 +22,14 @@ class user_data_header
 public:
     struct multi_part_data
     {
-        uint16_t
-            concat_sm_ref_num_{}; // Concatenated short message reference number
-        uint8_t number_of_parts_{}; // Maximum number of short messages in the
-                                    // concatenated short
-        uint8_t
-            sequence_number_{}; // Sequence number of the current short message.
+        // Concatenated short message reference number
+        uint16_t concat_sm_ref_num_{};
+
+        // Maximum number of short messages in the concatenated short
+        uint8_t number_of_parts_{};
+
+        // Sequence number of the current short message.
+        uint8_t sequence_number_{};
     };
 
 private:
@@ -148,13 +150,16 @@ unpack_short_message(
     data_coding data_coding,
     const std::string& short_message)
 {
-    if(extract_unicode(data_coding) == data_coding_unicode::ascii_8_bit &&
-       short_message.length() > 160)
-        throw std::length_error{ "short_message length is larger than 160" };
-
-    if(extract_unicode(data_coding) != data_coding_unicode::ascii_8_bit &&
-       short_message.length() > 140)
-        throw std::length_error{ "short_message length is larger than 140" };
+    if(extract_unicode(data_coding) == data_coding_unicode::ascii_8_bit)
+    {
+        if(short_message.length() > 160)
+            throw std::length_error("short_message length is larger than 160");
+    }
+    else
+    {
+        if(short_message.length() > 140)
+            throw std::length_error("short_message length is larger than 140");
+    }
 
     if(esm_class.gsm_network_features == gsm_network_features::uhdi ||
        esm_class.gsm_network_features == gsm_network_features::both)
@@ -162,9 +167,7 @@ unpack_short_message(
         const auto udh_length = static_cast<uint8_t>(short_message[0]);
 
         if(udh_length >= short_message.length())
-            throw std::length_error{
-                "UDH lenght is larger than short_message"
-            };
+            throw std::length_error("UDH lenght is larger than short_message");
 
         return { user_data_header{ short_message.substr(1, udh_length) },
                  short_message.substr(1 + udh_length) };
@@ -190,13 +193,16 @@ pack_short_message(
 
     short_message.append(body);
 
-    if(extract_unicode(data_coding) == data_coding_unicode::ascii_8_bit &&
-       short_message.length() > 160)
-        throw std::length_error{ "short_message length is larger than 160" };
-
-    if(extract_unicode(data_coding) != data_coding_unicode::ascii_8_bit &&
-       short_message.length() > 140)
-        throw std::length_error{ "short_message length is larger than 140" };
+    if(extract_unicode(data_coding) == data_coding_unicode::ascii_8_bit)
+    {
+        if(short_message.length() > 160)
+            throw std::length_error("short_message length is larger than 160");
+    }
+    else
+    {
+        if(short_message.length() > 140)
+            throw std::length_error("short_message length is larger than 140");
+    }
 
     return short_message;
 }

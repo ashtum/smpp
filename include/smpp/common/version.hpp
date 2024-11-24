@@ -9,6 +9,6 @@
 namespace smpp::version
 {
 inline constexpr auto major{ 0 };
-inline constexpr auto minor{ 1 };
+inline constexpr auto minor{ 2 };
 inline constexpr auto patch{ 0 };
 } // namespace smpp::version
