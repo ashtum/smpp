@@ -17,7 +17,6 @@
 #include <boost/asio/compose.hpp>
 #include <boost/asio/coroutine.hpp>
 #include <boost/asio/deferred.hpp>
-#include <boost/asio/experimental/parallel_group.hpp>
 #include <boost/asio/ip/tcp.hpp>
 #include <boost/asio/write.hpp>
 
@@ -28,10 +27,9 @@ class session
 {
     static constexpr auto header_length{ 16 };
     asio::ip::tcp::socket socket_;
-    detail::static_flat_buffer<uint8_t, 1024 * 1024> receive_buf_;
+    detail::static_flat_buffer<uint8_t, 128 * 1024> receive_buf_;
     std::vector<uint8_t> send_buf_;
     asio::steady_timer send_cv_;
-    asio::steady_timer enquire_link_timer_;
     std::chrono::seconds enquire_link_interval_{};
     uint32_t sequence_number_{};
 
@@ -203,7 +201,6 @@ inline session::session(
     std::chrono::seconds enquire_link_interval)
     : socket_(std::move(socket))
     , send_cv_{ socket_.get_executor(), asio::steady_timer::time_point::max() }
-    , enquire_link_timer_{ socket_.get_executor() }
     , enquire_link_interval_{ enquire_link_interval }
 {
 }
@@ -247,10 +244,13 @@ session::async_send_command(
             [this, command_id, sequence_number, c = asio::coroutine{}](
                 auto&& self,
                 boost::system::error_code ec = {},
-                std::size_t n                = {}) mutable
+                std::size_t                  = {}) mutable
             {
                 BOOST_ASIO_CORO_REENTER(c)
                 {
+                    self.reset_cancellation_state(
+                        asio::enable_total_cancellation());
+
                     while(!send_buf_.empty()) // ongoing send operation
                     {
                         BOOST_ASIO_CORO_YIELD
@@ -260,14 +260,15 @@ session::async_send_command(
                             return self.complete(ec);
                     }
 
-                    self.reset_cancellation_state(
-                        asio::enable_terminal_cancellation());
                     send_buf_.resize(header_length); // reserved for header
                     detail::serialize_header(
                         std::span<uint8_t, header_length>{ send_buf_ },
                         header_length,
                         command_id,
                         sequence_number);
+
+                    self.reset_cancellation_state(
+                        asio::enable_terminal_cancellation());
 
                     BOOST_ASIO_CORO_YIELD
                     asio::async_write(
@@ -300,10 +301,13 @@ session::async_send(const request_pdu auto& pdu, CompletionToken&& token)
         [this, &pdu, sequence_number = uint32_t{}, c = asio::coroutine{}](
             auto&& self,
             boost::system::error_code ec = {},
-            std::size_t n                = {}) mutable
+            std::size_t                  = {}) mutable
         {
             BOOST_ASIO_CORO_REENTER(c)
             {
+                self.reset_cancellation_state(
+                    asio::enable_total_cancellation());
+
                 while(!send_buf_.empty()) // ongoing send operation
                 {
                     BOOST_ASIO_CORO_YIELD
@@ -313,8 +317,6 @@ session::async_send(const request_pdu auto& pdu, CompletionToken&& token)
                         return self.complete(ec, {});
                 }
 
-                self.reset_cancellation_state(
-                    asio::enable_terminal_cancellation());
                 send_buf_.resize(header_length); // reserved for header
                 try
                 {
@@ -331,6 +333,9 @@ session::async_send(const request_pdu auto& pdu, CompletionToken&& token)
                     send_buf_.size(),
                     std::decay_t<decltype(pdu)>::command_id,
                     sequence_number);
+
+                self.reset_cancellation_state(
+                    asio::enable_terminal_cancellation());
 
                 BOOST_ASIO_CORO_YIELD
                 asio::async_write(
@@ -360,10 +365,13 @@ session::async_send(
         [this, &pdu, sequence_number, command_status, c = asio::coroutine{}](
             auto&& self,
             boost::system::error_code ec = {},
-            std::size_t n                = {}) mutable
+            std::size_t                  = {}) mutable
         {
             BOOST_ASIO_CORO_REENTER(c)
             {
+                self.reset_cancellation_state(
+                    asio::enable_total_cancellation());
+
                 while(!send_buf_.empty()) // ongoing send operation
                 {
                     BOOST_ASIO_CORO_YIELD
@@ -373,8 +381,6 @@ session::async_send(
                         return self.complete(ec);
                 }
 
-                self.reset_cancellation_state(
-                    asio::enable_terminal_cancellation());
                 send_buf_.resize(header_length); // reserved for header
                 try
                 {
@@ -391,6 +397,9 @@ session::async_send(
                     std::decay_t<decltype(pdu)>::command_id,
                     sequence_number,
                     command_status);
+
+                self.reset_cancellation_state(
+                    asio::enable_terminal_cancellation());
 
                 BOOST_ASIO_CORO_YIELD
                 asio::async_write(
@@ -427,7 +436,6 @@ class session::receive_op
     bool needs_more_               = false;
     bool needs_post_               = true;
     bool pending_enquire_link_     = false;
-    bool timedout_                 = false;
 
 public:
     explicit receive_op(session* s)
@@ -438,31 +446,8 @@ public:
     void
     operator()(
         auto&& self,
-        std::array<std::size_t, 2> order,
-        boost::system::error_code receive_ec,
-        std::size_t received,
-        boost::system::error_code timer_ec)
-    {
-        needs_post_ = false;
-        needs_more_ = false;
-        s_->receive_buf_.commit(received);
-
-        if(order[0] == 0) // receive completed first
-        {
-            pending_enquire_link_ = false;
-            if(receive_ec)
-                return self.complete(receive_ec, {}, {}, {});
-        }
-        else
-        {
-            timedout_ = true;
-        }
-
-        operator()(std::move(self));
-    }
-
-    void
-    operator()(auto&& self, boost::system::error_code ec = {})
+        boost::system::error_code ec = {},
+        std::size_t received         = {})
     {
         BOOST_ASIO_CORO_REENTER(c_)
         for(;;)
@@ -471,37 +456,50 @@ public:
 
             if(needs_more_)
             {
-                s_->enquire_link_timer_.expires_after(
-                    s_->enquire_link_interval_);
-                BOOST_ASIO_CORO_YIELD
-                asio::experimental::make_parallel_group(
-                    [&](auto token)
-                    {
-                        return s_->socket_.async_receive(
-                            s_->receive_buf_.prepare(64 * 1024), token);
-                    },
-                    [&](auto token)
-                    { return s_->enquire_link_timer_.async_wait(token); })
-                    .async_wait(
-                        asio::experimental::wait_for_one(), std::move(self));
-            }
+                needs_more_ = false;
+                needs_post_ = false;
+                self.reset_cancellation_state(
+                    asio::enable_total_cancellation());
 
-            if(timedout_)
-            {
-                if(pending_enquire_link_)
+                BOOST_ASIO_CORO_YIELD
+                s_->socket_.async_read_some(
+                    s_->receive_buf_.prepare(
+                        s_->receive_buf_.capacity() - s_->receive_buf_.size()),
+                    asio::cancel_after(
+                        s_->enquire_link_interval_,
+                        asio::cancellation_type::total,
+                        std::move(self)));
+
+                if(received != 0)
                 {
+                    pending_enquire_link_ = false;
+                    s_->receive_buf_.commit(received);
+                }
+
+                // enquire_link timeout
+                if(ec == asio::error::operation_aborted && !self.cancelled())
+                {
+                    if(pending_enquire_link_)
+                    {
+                        BOOST_ASIO_CORO_YIELD
+                        s_->async_send_command(
+                            unbind,
+                            s_->next_sequence_number(),
+                            std::move(self));
+                        s_->shutdown_socket();
+                        return self.complete(
+                            error::enquire_link_timeout, {}, {}, {});
+                    }
+                    pending_enquire_link_ = true;
                     BOOST_ASIO_CORO_YIELD
                     s_->async_send_command(
-                        unbind, s_->next_sequence_number(), std::move(self));
-                    s_->shutdown_socket();
-                    return self.complete(
-                        error::enquire_link_timeout, {}, {}, {});
+                        enquire_link,
+                        s_->next_sequence_number(),
+                        std::move(self));
                 }
-                pending_enquire_link_ = true;
-                BOOST_ASIO_CORO_YIELD
-                s_->async_send_command(
-                    enquire_link, s_->next_sequence_number(), std::move(self));
-                timedout_ = false;
+
+                if(ec)
+                    return self.complete(ec, {}, {}, {});
             }
 
             if(s_->receive_buf_.size() < header_length)
