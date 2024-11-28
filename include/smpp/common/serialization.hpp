@@ -5,6 +5,7 @@
 #pragma once
 
 #include <algorithm>
+#include <cinttypes>
 #include <span>
 #include <stdexcept>
 #include <tuple>
